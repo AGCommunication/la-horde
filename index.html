@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>La Horde : attaque tactique</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a0a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+            cursor: crosshair;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+        .hud-text {
+            text-shadow: 2px 2px 0 #000;
+        }
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .btn {
+            background: #22c55e;
+            color: #052e16;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            text-transform: uppercase;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            background: #16a34a;
+        }
+        .health-bar-container {
+            width: 200px;
+            height: 16px;
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(to right, #ef4444, #f87171);
+            width: 100%;
+            transition: width 0.3s;
+        }
+        .status-pill {
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid;
+            background: rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="flex justify-between items-start w-full">
+            <div class="bg-black bg-opacity-40 p-3 rounded-lg border border-gray-800">
+                <h1 class="text-2xl font-black text-green-500 hud-text italic tracking-tighter">LA HORDE</h1>
+                <div class="text-white text-lg hud-text mt-1">Horde: <span id="zombie-count" class="text-green-400 font-bold">1</span></div>
+                <div class="text-white text-lg hud-text">Proies: <span id="human-count" class="text-blue-400 font-bold">0</span></div>
+            </div>
+            <div class="flex flex-col items-end bg-black bg-opacity-40 p-3 rounded-lg border border-gray-800">
+                <div class="text-white text-lg hud-text uppercase font-bold">Quartier <span id="level-display" class="text-yellow-400">1</span></div>
+                <div class="health-bar-container">
+                    <div id="player-health" class="health-bar"></div>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">État du Patient Zéro</div>
+            </div>
+        </div>
+        
+        <div class="w-full flex justify-center gap-2 mb-6 flex-wrap">
+            <div id="dash-status" class="status-pill text-yellow-400 border-yellow-400">⚡ Charge Prête</div>
+            <div id="agglut-status" class="status-pill text-gray-400 border-gray-600">🛡 Agglutination (MAJ)</div>
+            <div id="throw-status" class="status-pill text-gray-400 border-gray-600">🎯 Lancer (Clic Droit)</div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1 class="text-7xl font-black text-green-500 mb-2 italic tracking-tighter">LA HORDE</h1>
+        <p class="text-gray-400 mb-8 max-w-xl text-center text-base px-4 leading-relaxed">
+            <span class="text-white font-bold">Vous êtes le zombie.</span><br>
+            Déplacez le <span class="text-green-400 font-bold">Patient Zéro</span> avec <span class="text-green-400 font-bold">ZQSD</span>.<br>
+            Dirigez la <span class="text-green-600 font-bold">Horde</span> avec le <span class="text-green-600 font-bold">Clic Gauche</span>.<br>
+            <span class="text-yellow-400 font-bold">Espace</span> : <span class="text-yellow-400">Charge Collective</span> (boost de vitesse).<br>
+            <span class="text-cyan-400 font-bold">MAJ (Shift)</span> : <span class="text-cyan-400">Agglutination</span> — la horde se compacte autour de toi en bouclier vivant.<br>
+            <span class="text-amber-400 font-bold">Clic Droit</span> : <span class="text-amber-400">Lancer un zombie</span> par-dessus les obstacles. À l'impact, contamination de zone.
+        </p>
+        <button class="btn shadow-[0_0_20px_rgba(34,197,94,0.4)]" onclick="startGame()">Infectez la ville</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1 id="go-title" class="text-6xl font-black text-red-600 mb-2 italic">HORDE ÉCRASÉE</h1>
+        <p id="go-score" class="text-white text-2xl mb-8 opacity-80"></p>
+        <button class="btn" onclick="restartGame()">Réessayer l'Infection</button>
+    </div>
+
+<script>
+/**
+ * LA HORDE v0.3.0 — Agglutination + Lancer de Zombie
+ */
+
+const CONFIG = {
+    zombieSpeed: 2.8,
+    humanSpeed: 3.5,
+    soldierSpeed: 2,
+    dashMultiplier: 2.5,
+    dashDuration: 40,
+    dashCooldown: 300,
+    infectionRadius: 18,
+    viewRadius: 300,
+    shootRange: 350,
+    shootCooldown: 70,
+    bulletSpeed: 7,
+    worldWidth: 2400,
+    worldHeight: 2400,
+    // Agglutination
+    agglutinationPlayerSlow: 0.75,
+    agglutinationGatherSpeed: 1.3,
+    // Lancer
+    throwPickupRange: 200,
+    throwBurstRadius: 55,
+    throwMaxRange: 700,
+    colors: {
+        bg: '#111',
+        alpha: '#4ade80',
+        zombie: '#166534',
+        civilian: '#60a5fa',
+        soldier: '#ef4444',
+        bullet: '#fbbf24',
+        building: '#334155',
+        buildingStroke: '#1e293b'
+    }
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let animationId;
+
+const keys = {
+    z: false, q: false, s: false, d: false,
+    w: false, a: false,
+    ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false,
+    Space: false,
+    Shift: false
+};
+
+let state = {
+    entities: [],
+    bullets: [],
+    particles: [],
+    buildings: [],
+    thrownZombies: [],
+    player: null,
+    level: 1,
+    gameOver: false,
+    mouseX: 0,
+    mouseY: 0,
+    isCommanding: false,
+    isAgglutinating: false,
+    isAiming: false,
+    heldZombie: null,
+    dashTimer: 0,
+    dashCooldownTimer: 0,
+    camera: { x: 0, y: 0 },
+    tick: 0
+};
+
+class Building {
+    constructor(x, y, w, h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+    }
+
+    draw(ctx, camX, camY) {
+        ctx.fillStyle = CONFIG.colors.building;
+        ctx.strokeStyle = CONFIG.colors.buildingStroke;
+        ctx.lineWidth = 4;
+        ctx.fillRect(this.x - camX, this.y - camY, this.w, this.h);
+        ctx.strokeRect(this.x - camX, this.y - camY, this.w, this.h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.strokeRect(this.x - camX + 10, this.y - camY + 10, this.w - 20, this.h - 20);
+    }
+
+    resolveCollision(entity) {
+        let closestX = Math.max(this.x, Math.min(entity.x, this.x + this.w));
+        let closestY = Math.max(this.y, Math.min(entity.y, this.y + this.h));
+        let dx = entity.x - closestX;
+        let dy = entity.y - closestY;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < entity.radius) {
+            let overlap = entity.radius - distance;
+            if (distance === 0) { 
+                entity.x -= 1; 
+            } else {
+                entity.x += (dx / distance) * overlap;
+                entity.y += (dy / distance) * overlap;
+            }
+        }
+    }
+
+    contains(x, y, padding = 0) {
+        return x >= this.x - padding && x <= this.x + this.w + padding &&
+               y >= this.y - padding && y <= this.y + this.h + padding;
+    }
+}
+
+class Entity {
+    constructor(x, y, radius, color, type) {
+        this.x = x; this.y = y; this.radius = radius;
+        this.color = color; this.type = type; 
+        this.vx = 0; this.vy = 0;
+        this.health = 100; this.maxHealth = 100;
+        this.dead = false;
+        this.panicSeed = Math.random() * 1000;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        state.buildings.forEach(b => b.resolveCollision(this));
+        if (this.x < this.radius) this.x = this.radius;
+        if (this.y < this.radius) this.y = this.radius;
+        if (this.x > CONFIG.worldWidth - this.radius) this.x = CONFIG.worldWidth - this.radius;
+        if (this.y > CONFIG.worldHeight - this.radius) this.y = CONFIG.worldHeight - this.radius;
+    }
+
+    draw(ctx, camX, camY) {
+        if (state.dashTimer > 0 && (this.type === 'player' || this.type === 'zombie')) {
+            ctx.beginPath();
+            ctx.arc(this.x - camX, this.y - camY, this.radius + 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
+            ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(this.x - camX, this.y - camY, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#000';
+        ctx.stroke();
+
+        if (this.type === 'player') {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        if (this.type === 'player' || this.type === 'soldier') {
+            if (this.health < this.maxHealth) {
+                const bw = 24;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(this.x - camX - bw/2, this.y - camY - this.radius - 10, bw, 4);
+                ctx.fillStyle = this.type === 'player' ? '#4ade80' : '#ef4444';
+                ctx.fillRect(this.x - camX - bw/2, this.y - camY - this.radius - 10, bw * (this.health / this.maxHealth), 4);
+            }
+        }
+    }
+
+    distanceTo(other) {
+        return Math.hypot(this.x - other.x, this.y - other.y);
+    }
+}
+
+class Bullet {
+    constructor(x, y, targetX, targetY) {
+        this.x = x; this.y = y; this.radius = 3;
+        const angle = Math.atan2(targetY - y, targetX - x);
+        this.vx = Math.cos(angle) * CONFIG.bulletSpeed;
+        this.vy = Math.sin(angle) * CONFIG.bulletSpeed;
+        this.dead = false;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        for (let b of state.buildings) { if (b.contains(this.x, this.y)) { this.dead = true; return; } }
+        if (this.x < 0 || this.x > CONFIG.worldWidth || this.y < 0 || this.y > CONFIG.worldHeight) this.dead = true;
+    }
+    draw(ctx, camX, camY) {
+        ctx.beginPath(); ctx.arc(this.x - camX, this.y - camY, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = CONFIG.colors.bullet; ctx.fill();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 6;
+        this.vy = (Math.random() - 0.5) * 6;
+        this.life = 1.0; this.color = color;
+    }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.04; }
+    draw(ctx, camX, camY) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color; ctx.fillRect(this.x - camX, this.y - camY, 3, 3);
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+class ThrownZombie {
+    constructor(startX, startY, targetX, targetY) {
+        this.startX = startX;
+        this.startY = startY;
+        // Clamp target to max range
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+        const dist = Math.hypot(dx, dy);
+        if (dist > CONFIG.throwMaxRange) {
+            const f = CONFIG.throwMaxRange / dist;
+            targetX = startX + dx * f;
+            targetY = startY + dy * f;
+        }
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.x = startX;
+        this.y = startY;
+        this.z = 0;
+        this.progress = 0;
+        const clampedDist = Math.hypot(targetX - startX, targetY - startY);
+        this.flightTime = Math.max(22, Math.min(55, clampedDist / 14));
+        this.dead = false;
+        this.spin = 0;
+    }
+
+    update() {
+        this.progress++;
+        const t = this.progress / this.flightTime;
+        if (t >= 1) {
+            this.land();
+            return;
+        }
+        this.x = this.startX + (this.targetX - this.startX) * t;
+        this.y = this.startY + (this.targetY - this.startY) * t;
+        this.z = Math.sin(t * Math.PI) * 90;
+        this.spin += 0.45;
+    }
+
+    land() {
+        this.dead = true;
+        const burstR = CONFIG.throwBurstRadius;
+        // Burst infection on impact
+        state.entities.forEach(e => {
+            if (e.type === 'civilian' || e.type === 'soldier') {
+                if (Math.hypot(e.x - this.targetX, e.y - this.targetY) < burstR) {
+                    e.type = 'zombie';
+                    e.color = CONFIG.colors.zombie;
+                    spawnParticles(e.x, e.y, CONFIG.colors.soldier, 12);
+                }
+            }
+        });
+        // The thrown zombie EXPLODES — no resurrection
+        // Big splash of gore-cartoon particles
+        spawnParticles(this.targetX, this.targetY, '#4ade80', 35);
+        spawnParticles(this.targetX, this.targetY, '#86efac', 25);
+        spawnParticles(this.targetX, this.targetY, '#166534', 25);
+        spawnParticles(this.targetX, this.targetY, '#dc2626', 15); // splatter accent
+        spawnParticles(this.targetX, this.targetY, '#1a1a1a', 12); // impact dust
+    }
+
+    draw(ctx, camX, camY) {
+        // Shadow on the ground (shrinks with height)
+        const shadowAlpha = Math.max(0.15, 0.55 - this.z * 0.005);
+        const shadowR = Math.max(4, 12 - this.z * 0.08);
+        ctx.beginPath();
+        ctx.ellipse(this.x - camX, this.y - camY, shadowR, shadowR * 0.45, 0, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+        ctx.fill();
+
+        // Zombie airborne (offset by z)
+        ctx.save();
+        ctx.translate(this.x - camX, this.y - camY - this.z);
+        ctx.rotate(this.spin);
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.fillStyle = CONFIG.colors.zombie;
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Little flailing limbs
+        ctx.strokeStyle = '#0f3d22';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-10, 0); ctx.lineTo(-18, 4);
+        ctx.moveTo(10, 0); ctx.lineTo(18, -4);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function spawnParticles(x, y, color, count) {
+    for(let i=0; i<count; i++) state.particles.push(new Particle(x, y, color));
+}
+
+// Status pills — cached DOM refs + change detection so we don't trash the DOM 60x/sec
+const statusPillEls = {
+    dash: null,
+    agglut: null,
+    throw: null
+};
+let _lastPillState = { dash: '', agglut: '', throw: '' };
+
+function initStatusPillRefs() {
+    statusPillEls.dash = document.getElementById('dash-status');
+    statusPillEls.agglut = document.getElementById('agglut-status');
+    statusPillEls.throw = document.getElementById('throw-status');
+}
+
+function setPill(el, text, className) {
+    el.innerText = text;
+    el.className = className;
+}
+
+function updateStatusPills() {
+    // DASH
+    let dashKey, dashText, dashClass;
+    if (state.dashTimer > 0) {
+        dashKey = 'active'; dashText = '⚡ CHARGE ACTIVE'; dashClass = 'status-pill text-yellow-300 border-yellow-300';
+    } else if (state.dashCooldownTimer > 0) {
+        dashKey = 'cd:' + Math.ceil(state.dashCooldownTimer / 60);
+        dashText = `⚡ Recharge (${Math.ceil(state.dashCooldownTimer / 60)}s)`;
+        dashClass = 'status-pill text-gray-400 border-gray-600';
+    } else {
+        dashKey = 'ready'; dashText = '⚡ Charge Prête (ESPACE)'; dashClass = 'status-pill text-yellow-400 border-yellow-400';
+    }
+    if (dashKey !== _lastPillState.dash) {
+        setPill(statusPillEls.dash, dashText, dashClass);
+        _lastPillState.dash = dashKey;
+    }
+
+    // AGGLUT
+    const agglutKey = state.isAgglutinating ? 'on' : 'off';
+    if (agglutKey !== _lastPillState.agglut) {
+        if (state.isAgglutinating) {
+            setPill(statusPillEls.agglut, '🛡 BOUCLIER VIVANT ACTIF', 'status-pill text-cyan-300 border-cyan-300');
+        } else {
+            setPill(statusPillEls.agglut, '🛡 Agglutination (MAJ)', 'status-pill text-gray-400 border-gray-600');
+        }
+        _lastPillState.agglut = agglutKey;
+    }
+
+    // THROW
+    let throwKey;
+    if (state.isAiming) throwKey = 'aim';
+    else {
+        const hasZ = state.entities.some(e => e.type === 'zombie');
+        throwKey = hasZ ? 'ready' : 'empty';
+    }
+    if (throwKey !== _lastPillState.throw) {
+        if (throwKey === 'aim') setPill(statusPillEls.throw, '🎯 VISÉE...', 'status-pill text-amber-300 border-amber-300');
+        else if (throwKey === 'ready') setPill(statusPillEls.throw, '🎯 Lancer (Clic Droit)', 'status-pill text-amber-400 border-amber-400');
+        else setPill(statusPillEls.throw, '🎯 Pas de zombie à lancer', 'status-pill text-gray-500 border-gray-700');
+        _lastPillState.throw = throwKey;
+    }
+}
+
+function generateUrbanLevel(level) {
+    state.buildings = []; state.entities = []; state.bullets = []; state.particles = []; state.thrownZombies = []; state.tick = 0;
+    state.heldZombie = null; state.isAiming = false;
+    const cellSize = 400;
+    for (let gx = 0; gx < CONFIG.worldWidth; gx += cellSize) {
+        for (let gy = 0; gy < CONFIG.worldHeight; gy += cellSize) {
+            if (Math.random() > 0.3) {
+                const bw = 150 + Math.random() * 150;
+                const bh = 150 + Math.random() * 150;
+                const bx = gx + (cellSize - bw) / 2;
+                const by = gy + (cellSize - bh) / 2;
+                if (Math.hypot(bx + bw/2 - CONFIG.worldWidth/2, by + bh/2 - CONFIG.worldHeight/2) > 300) {
+                    state.buildings.push(new Building(bx, by, bw, bh));
+                }
+            }
+        }
+    }
+    state.player = new Entity(CONFIG.worldWidth / 2, CONFIG.worldHeight / 2, 16, CONFIG.colors.alpha, 'player');
+    state.player.health = 200; state.player.maxHealth = 200;
+    state.entities.push(state.player);
+    for(let i=0; i<15 + (level * 5); i++) spawnEntity('civilian');
+    for(let i=0; i<3 + (level * 2); i++) spawnEntity('soldier');
+}
+
+function spawnEntity(type) {
+    let x, y, radius = type === 'civilian' ? 12 : 14, color = type === 'civilian' ? CONFIG.colors.civilian : CONFIG.colors.soldier;
+    let valid = false;
+    while (!valid) {
+        x = Math.random() * CONFIG.worldWidth; y = Math.random() * CONFIG.worldHeight;
+        if (Math.hypot(x - state.player.x, y - state.player.y) > 600 && !state.buildings.some(b => b.contains(x, y, 30))) valid = true;
+    }
+    let ent = new Entity(x, y, radius, color, type);
+    if (type === 'soldier') ent.cooldown = Math.random() * 60;
+    state.entities.push(ent);
+}
+
+function update() {
+    if (state.gameOver) return;
+    state.tick++;
+
+    // Agglutination toggle bound to Shift
+    state.isAgglutinating = keys.Shift;
+
+    // Dash
+    if (keys.Space && state.dashCooldownTimer <= 0) {
+        state.dashTimer = CONFIG.dashDuration;
+        state.dashCooldownTimer = CONFIG.dashCooldown;
+    }
+
+    let globalSpeedMult = 1;
+    if (state.dashTimer > 0) {
+        globalSpeedMult = CONFIG.dashMultiplier;
+        state.dashTimer--;
+        state.entities.forEach(e => {
+            if ((e.type === 'player' || e.type === 'zombie') && Math.random() > 0.8) {
+                spawnParticles(e.x, e.y, 'rgba(34, 197, 94, 0.4)', 1);
+            }
+        });
+    }
+    if (state.dashCooldownTimer > 0) state.dashCooldownTimer--;
+
+    // Status pills — only touch DOM when the state actually changes (perf)
+    updateStatusPills();
+
+    // Player input
+    let pMoveX = 0, pMoveY = 0;
+    if (keys.z || keys.w || keys.ArrowUp) pMoveY -= 1;
+    if (keys.s || keys.ArrowDown) pMoveY += 1;
+    if (keys.q || keys.a || keys.ArrowLeft) pMoveX -= 1;
+    if (keys.d || keys.ArrowRight) pMoveX += 1;
+
+    const playerSpeedMult = state.isAgglutinating ? CONFIG.agglutinationPlayerSlow : 1;
+    if (pMoveX !== 0 || pMoveY !== 0) {
+        const ang = Math.atan2(pMoveY, pMoveX);
+        state.player.vx = Math.cos(ang) * CONFIG.zombieSpeed * globalSpeedMult * playerSpeedMult;
+        state.player.vy = Math.sin(ang) * CONFIG.zombieSpeed * globalSpeedMult * playerSpeedMult;
+    } else {
+        state.player.vx = 0; state.player.vy = 0;
+    }
+
+    const zombies = state.entities.filter(e => e.type === 'zombie' && !e.dead);
+    const humans = state.entities.filter(e => (e.type === 'civilian' || e.type === 'soldier') && !e.dead);
+    const targetWorldX = state.mouseX + state.camera.x;
+    const targetWorldY = state.mouseY + state.camera.y;
+
+    // Validate held zombie still exists
+    if (state.heldZombie && (state.heldZombie.dead || state.heldZombie.type !== 'zombie')) {
+        state.heldZombie = null;
+        state.isAiming = false;
+    }
+    // Held zombie follows player (gets pulled close, not affecting other AI)
+    if (state.heldZombie) {
+        const ang = Math.atan2(state.player.y - state.heldZombie.y, state.player.x - state.heldZombie.x);
+        const d = state.heldZombie.distanceTo(state.player);
+        const s = d > 25 ? CONFIG.zombieSpeed * 1.5 : 0;
+        state.heldZombie.vx = Math.cos(ang) * s;
+        state.heldZombie.vy = Math.sin(ang) * s;
+    }
+
+    state.entities.forEach(ent => {
+        if (ent.dead) return;
+        if (ent.type === 'player') { ent.update(); return; }
+        // Skip the held zombie's normal AI (it's being controlled)
+        if (ent === state.heldZombie) { ent.update(); return; }
+
+        if (ent.type === 'zombie') {
+            const zSpeed = CONFIG.zombieSpeed * globalSpeedMult;
+
+            // AGGLUTINATION: zombies converge tightly on player, override other behavior
+            if (state.isAgglutinating) {
+                const ang = Math.atan2(state.player.y - ent.y, state.player.x - ent.x);
+                const d = ent.distanceTo(state.player);
+                const s = d > 22 ? zSpeed * CONFIG.agglutinationGatherSpeed : 0;
+                ent.vx = Math.cos(ang) * s;
+                ent.vy = Math.sin(ang) * s;
+                // Reduced repulsion so they pack tight
+                zombies.forEach(z => {
+                    if (z !== ent && ent.distanceTo(z) < 17) {
+                        ent.vx += (ent.x - z.x) * 0.04;
+                        ent.vy += (ent.y - z.y) * 0.04;
+                    }
+                });
+                // No player repulsion in agglutination
+                ent.update();
+                return;
+            }
+
+            if (state.isCommanding) {
+                let ang = Math.atan2(targetWorldY - ent.y, targetWorldX - ent.x);
+                let d = Math.hypot(targetWorldX - ent.x, targetWorldY - ent.y);
+                let s = d > 20 ? zSpeed * 1.3 : 0;
+                ent.vx = Math.cos(ang) * s; ent.vy = Math.sin(ang) * s;
+            } else {
+                let closestHuman = null, hMinDist = CONFIG.viewRadius;
+                for(let h of humans) {
+                    let d = ent.distanceTo(h);
+                    if (d < hMinDist) { hMinDist = d; closestHuman = h; }
+                }
+                if (closestHuman) {
+                    let ang = Math.atan2(closestHuman.y - ent.y, closestHuman.x - ent.x);
+                    ent.vx = Math.cos(ang) * (zSpeed * 1.2); ent.vy = Math.sin(ang) * (zSpeed * 1.2);
+                } else {
+                    let ang = Math.atan2(state.player.y - ent.y, state.player.x - ent.x);
+                    let s = ent.distanceTo(state.player) > 100 ? zSpeed : (zSpeed * 0.4);
+                    ent.vx = Math.cos(ang) * s; ent.vy = Math.sin(ang) * s;
+                }
+            }
+            zombies.forEach(z => {
+                if (z !== ent && ent.distanceTo(z) < 25) {
+                    ent.vx += (ent.x - z.x) * 0.1; ent.vy += (ent.y - z.y) * 0.1;
+                }
+            });
+            if (ent.distanceTo(state.player) < 35) {
+                ent.vx += (ent.x - state.player.x) * 0.2; ent.vy += (ent.y - state.player.y) * 0.2;
+            }
+        }
+
+        if (ent.type === 'civilian' || ent.type === 'soldier') {
+            let dangerousZombie = null, dMin = 250;
+            const threats = [state.player, ...zombies];
+            for(let t of threats) {
+                let d = ent.distanceTo(t);
+                if (d < dMin) { dMin = d; dangerousZombie = t; }
+            }
+            if (dangerousZombie) {
+                let baseAng = Math.atan2(ent.y - dangerousZombie.y, ent.x - dangerousZombie.x);
+                let zigzag = Math.sin((state.tick * 0.1) + ent.panicSeed) * (Math.PI / 4);
+                let finalAng = baseAng + zigzag;
+
+                const wallMargin = 100;
+                if (ent.x < wallMargin) finalAng = 0;
+                else if (ent.x > CONFIG.worldWidth - wallMargin) finalAng = Math.PI;
+                if (ent.y < wallMargin) finalAng = Math.PI / 2;
+                else if (ent.y > CONFIG.worldHeight - wallMargin) finalAng = -Math.PI / 2;
+
+                let s = ent.type === 'soldier' ? CONFIG.soldierSpeed : CONFIG.humanSpeed;
+                ent.vx = Math.cos(finalAng) * s;
+                ent.vy = Math.sin(finalAng) * s;
+            } else {
+                if (state.tick % 120 === 0) {
+                    ent.vx = (Math.random() - 0.5) * 0.5;
+                    ent.vy = (Math.random() - 0.5) * 0.5;
+                }
+            }
+            if (ent.type === 'soldier') {
+                ent.cooldown--;
+                if (dangerousZombie && dMin < CONFIG.shootRange && ent.cooldown <= 0) {
+                    state.bullets.push(new Bullet(ent.x, ent.y, dangerousZombie.x, dangerousZombie.y));
+                    ent.cooldown = CONFIG.shootCooldown;
+                }
+            }
+        }
+        ent.update();
+    });
+
+    // Bullets — ZOMBIES checked first so they absorb shots in agglutination
+    state.bullets.forEach(b => {
+        b.update();
+        const targets = [...zombies, state.player];
+        for (let t of targets) {
+            if (t.dead) continue;
+            if (t.distanceTo(b) < t.radius + b.radius) {
+                b.dead = true;
+                if (t.type === 'player') {
+                    t.health -= 8;
+                    if (t.health <= 0) endGame();
+                } else {
+                    t.dead = true;
+                    spawnParticles(t.x, t.y, CONFIG.colors.zombie, 6);
+                }
+                break;
+            }
+        }
+    });
+    state.bullets = state.bullets.filter(b => !b.dead);
+
+    // Thrown zombies
+    state.thrownZombies.forEach(tz => tz.update());
+    state.thrownZombies = state.thrownZombies.filter(tz => !tz.dead);
+
+    // Contact infection
+    const infectious = [state.player, ...zombies];
+    for (let z of infectious) {
+        for (let h of humans) {
+            if (z.distanceTo(h) < CONFIG.infectionRadius) {
+                h.type = 'zombie'; h.color = CONFIG.colors.zombie;
+                spawnParticles(h.x, h.y, CONFIG.colors.soldier, 10);
+            }
+        }
+    }
+
+    state.entities = state.entities.filter(e => !e.dead);
+    if (state.heldZombie && state.heldZombie.dead) {
+        state.heldZombie = null;
+        state.isAiming = false;
+    }
+    state.particles.forEach(p => p.update());
+    state.particles = state.particles.filter(p => p.life > 0);
+
+    state.camera.x += (state.player.x - canvas.width / 2 - state.camera.x) * 0.08;
+    state.camera.y += (state.player.y - canvas.height / 2 - state.camera.y) * 0.08;
+    state.camera.x = Math.max(0, Math.min(state.camera.x, CONFIG.worldWidth - canvas.width));
+    state.camera.y = Math.max(0, Math.min(state.camera.y, CONFIG.worldHeight - canvas.height));
+
+    if (state.entities.filter(e => e.type === 'civilian' || e.type === 'soldier').length === 0) nextLevel();
+    updateUI();
+}
+
+function draw() {
+    ctx.fillStyle = CONFIG.colors.bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+    const gS = 100;
+    ctx.beginPath();
+    for (let x = -state.camera.x % gS; x < canvas.width; x += gS) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
+    for (let y = -state.camera.y % gS; y < canvas.height; y += gS) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
+    ctx.stroke();
+
+    // AGGLUTINATION halo around player
+    if (state.isAgglutinating) {
+        const time = Date.now() * 0.005;
+        const pulse = Math.sin(time) * 8;
+        ctx.beginPath();
+        ctx.arc(state.player.x - state.camera.x, state.player.y - state.camera.y, 80 + pulse, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.06)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.4)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(state.player.x - state.camera.x, state.player.y - state.camera.y, 55, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.25)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // Command ring
+    if (state.isCommanding) {
+        const time = Date.now() * 0.01; const pulse = Math.sin(time) * 12;
+        ctx.beginPath(); ctx.arc(state.mouseX, state.mouseY, 25 + pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(74, 222, 128, 0.4)'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    state.buildings.forEach(b => b.draw(ctx, state.camera.x, state.camera.y));
+    state.entities.forEach(e => e.draw(ctx, state.camera.x, state.camera.y));
+    state.bullets.forEach(b => b.draw(ctx, state.camera.x, state.camera.y));
+
+    // AIMING THROW overlay
+    if (state.isAiming && state.heldZombie) {
+        // Highlight held zombie with pulsing yellow ring
+        const time = Date.now() * 0.012;
+        const pulse = Math.sin(time) * 3;
+        ctx.beginPath();
+        ctx.arc(state.heldZombie.x - state.camera.x, state.heldZombie.y - state.camera.y, 22 + pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Trajectory dashed line (player -> mouse)
+        const sx = state.player.x - state.camera.x;
+        const sy = state.player.y - state.camera.y;
+        let mx = state.mouseX;
+        let my = state.mouseY;
+        // Clamp visualization within max range
+        const dx = (mx + state.camera.x) - state.player.x;
+        const dy = (my + state.camera.y) - state.player.y;
+        const d = Math.hypot(dx, dy);
+        if (d > CONFIG.throwMaxRange) {
+            const f = CONFIG.throwMaxRange / d;
+            mx = (state.player.x + dx * f) - state.camera.x;
+            my = (state.player.y + dy * f) - state.camera.y;
+        }
+        ctx.beginPath();
+        ctx.setLineDash([8, 6]);
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(mx, my);
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Target marker (impact zone preview)
+        ctx.beginPath();
+        ctx.arc(mx, my, CONFIG.throwBurstRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
+        ctx.fill();
+
+        // Crosshair
+        ctx.beginPath();
+        ctx.moveTo(mx - 14, my); ctx.lineTo(mx + 14, my);
+        ctx.moveTo(mx, my - 14); ctx.lineTo(mx, my + 14);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // Thrown zombies render ABOVE everything else (they're in the air)
+    state.thrownZombies.forEach(tz => tz.draw(ctx, state.camera.x, state.camera.y));
+
+    state.particles.forEach(p => p.draw(ctx, state.camera.x, state.camera.y));
+
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 10;
+    ctx.strokeRect(-state.camera.x, -state.camera.y, CONFIG.worldWidth, CONFIG.worldHeight);
+}
+
+function loop() { update(); draw(); if (!state.gameOver) animationId = requestAnimationFrame(loop); }
+
+function updateUI() {
+    document.getElementById('zombie-count').innerText = state.entities.filter(e => (e.type === 'zombie' || e.type === 'player')).length;
+    document.getElementById('human-count').innerText = state.entities.filter(e => (e.type === 'civilian' || e.type === 'soldier')).length;
+    document.getElementById('level-display').innerText = state.level;
+    document.getElementById('player-health').style.width = `${(state.player.health/state.player.maxHealth)*100}%`;
+}
+
+function nextLevel() {
+    state.level++; state.player.health = Math.min(state.player.health + 70, state.player.maxHealth);
+    generateUrbanLevel(state.level);
+}
+
+function endGame() {
+    state.gameOver = true; document.getElementById('game-over-screen').classList.remove('hidden');
+    document.getElementById('go-score').innerText = `Quartiers envahis : ${state.level - 1}`;
+}
+
+function startGame() { document.getElementById('start-screen').classList.add('hidden'); generateUrbanLevel(1); loop(); }
+
+function restartGame() { state.level = 1; document.getElementById('game-over-screen').classList.add('hidden'); generateUrbanLevel(1); state.gameOver = false; loop(); }
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+
+// ===== INPUT =====
+
+window.addEventListener('resize', resize);
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+window.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    if (key === 'z' || key === 'w') keys.z = true;
+    if (key === 'q' || key === 'a') keys.q = true;
+    if (key === 's') keys.s = true;
+    if (key === 'd') keys.d = true;
+    if (e.code === 'Space') { keys.Space = true; e.preventDefault(); }
+    if (e.key === 'Shift') keys.Shift = true;
+});
+window.addEventListener('keyup', e => {
+    const key = e.key.toLowerCase();
+    if (key === 'z' || key === 'w') keys.z = false;
+    if (key === 'q' || key === 'a') keys.q = false;
+    if (key === 's') keys.s = false;
+    if (key === 'd') keys.d = false;
+    if (e.code === 'Space') keys.Space = false;
+    if (e.key === 'Shift') keys.Shift = false;
+});
+window.addEventListener('mousemove', e => { state.mouseX = e.clientX; state.mouseY = e.clientY; });
+
+window.addEventListener('mousedown', (e) => {
+    if (state.gameOver) return;
+    if (e.button === 0) {
+        state.isCommanding = true;
+    } else if (e.button === 2) {
+        // Pick up the closest zombie within range
+        const zombies = state.entities.filter(z => z.type === 'zombie' && !z.dead);
+        if (zombies.length === 0) return;
+        let closest = null, minD = CONFIG.throwPickupRange;
+        for (const z of zombies) {
+            const d = z.distanceTo(state.player);
+            if (d < minD) { minD = d; closest = z; }
+        }
+        if (closest) {
+            state.heldZombie = closest;
+            state.isAiming = true;
+        }
+    }
+});
+
+window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) state.isCommanding = false;
+    if (e.button === 2 && state.heldZombie) {
+        const tx = state.mouseX + state.camera.x;
+        const ty = state.mouseY + state.camera.y;
+        state.thrownZombies.push(new ThrownZombie(state.heldZombie.x, state.heldZombie.y, tx, ty));
+        state.heldZombie.dead = true;
+        state.heldZombie = null;
+        state.isAiming = false;
+    }
+});
+
+resize();
+initStatusPillRefs();
+</script>
+</body>
+</html>
