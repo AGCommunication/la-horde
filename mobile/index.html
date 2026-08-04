@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>La Horde</title>
+<style>
+:root{
+  --noir:#0a0b0a;
+  --vert-vif:#4ade80;
+  --vert-sombre:#166534;
+  --vert-acide:#22c55e;
+  --sang:#ef4444;
+  --proie:#60a5fa;
+  --ambre:#fbbf24;
+  --gris:#6b7280;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{
+  margin:0;padding:0;width:100%;height:100%;
+  overflow:hidden;overscroll-behavior:none;
+  background:var(--noir);
+  color:#fff;
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+}
+canvas{display:block;position:fixed;top:0;left:0;}
+
+/* ---------- HUD ---------- */
+#hud{
+  position:fixed;inset:0;pointer-events:none;z-index:5;
+  padding:calc(var(--safe-t) + 10px) calc(var(--safe-r) + 12px) calc(var(--safe-b) + 12px) calc(var(--safe-l) + 12px);
+}
+.bandeau{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+}
+.plaque{
+  background:rgba(0,0,0,.5);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:7px 11px;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+.etiquette{
+  font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--gris);
+  line-height:1;margin-bottom:3px;
+}
+.chiffre{font-size:22px;font-weight:900;font-style:italic;line-height:1;letter-spacing:-.02em;}
+.duo{display:flex;gap:16px;}
+.vie-piste{
+  width:110px;height:7px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;margin-top:6px;
+}
+.vie-jauge{height:100%;width:100%;background:linear-gradient(90deg,var(--vert-sombre),var(--vert-vif));transition:width .25s;}
+
+/* ---------- Boutons pouce ---------- */
+#pouce{
+  position:fixed;
+  right:calc(var(--safe-r) + 16px);
+  bottom:calc(var(--safe-b) + 22px);
+  z-index:6;
+  width:190px;height:190px;
+  pointer-events:none;
+}
+.bouton{
+  position:absolute;
+  pointer-events:auto;touch-action:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.14);
+  background:rgba(10,12,10,.62);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:#fff;
+  font-weight:800;font-style:italic;letter-spacing:-.01em;
+  text-transform:uppercase;
+  transition:transform .08s ease,background .12s ease,border-color .12s ease,opacity .12s;
+  overflow:hidden;
+}
+.bouton .titre{font-size:11px;line-height:1;position:relative;z-index:2;}
+.bouton .sous{font-size:8px;font-weight:600;font-style:normal;letter-spacing:.14em;color:var(--gris);margin-top:3px;position:relative;z-index:2;}
+.bouton.presse{transform:scale(.9);}
+.bouton.eteint{opacity:.32;}
+
+#btn-charge{right:0;bottom:0;width:92px;height:92px;border-color:rgba(251,191,36,.4);}
+#btn-charge.presse,#btn-charge.actif{background:rgba(251,191,36,.28);border-color:var(--ambre);}
+#btn-masse{right:88px;bottom:52px;width:70px;height:70px;border-color:rgba(74,222,128,.4);}
+#btn-masse.presse{background:rgba(74,222,128,.3);border-color:var(--vert-vif);}
+#btn-lancer{right:26px;bottom:104px;width:70px;height:70px;border-color:rgba(239,68,68,.4);}
+#btn-lancer.presse{background:rgba(239,68,68,.3);border-color:var(--sang);}
+
+.voile{
+  position:absolute;left:0;bottom:0;width:100%;
+  background:rgba(255,255,255,.16);
+  pointer-events:none;
+  z-index:0;
+  transition:height .1s linear;
+}
+
+/* ---------- Écrans ---------- */
+.ecran{
+  position:fixed;inset:0;z-index:20;
+  background:radial-gradient(circle at 50% 40%,#101410 0%,#000 75%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:calc(var(--safe-t) + 24px) 26px calc(var(--safe-b) + 24px);
+  text-align:center;
+}
+.ecran.cache{display:none;}
+.titre-jeu{
+  font-size:clamp(46px,17vw,110px);
+  font-weight:900;font-style:italic;letter-spacing:-.055em;
+  color:var(--vert-acide);
+  margin:0;line-height:.85;
+  text-shadow:0 0 34px rgba(34,197,94,.35);
+}
+.accroche{
+  color:#9ca3af;font-size:14px;line-height:1.6;max-width:340px;margin:18px 0 26px;
+}
+.accroche b{color:#fff;font-weight:700;}
+.cta{
+  pointer-events:auto;touch-action:manipulation;
+  background:var(--vert-acide);color:#04240f;
+  border:none;border-radius:999px;
+  padding:17px 42px;
+  font-size:17px;font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:.02em;
+  box-shadow:0 0 34px rgba(34,197,94,.35);
+  cursor:pointer;
+}
+.cta:active{transform:scale(.96);}
+.aide{
+  margin-top:26px;color:#4b5563;font-size:11px;letter-spacing:.12em;text-transform:uppercase;line-height:2;
+}
+.aide span{color:#9ca3af;}
+#go-titre{
+  font-size:clamp(34px,11vw,64px);font-weight:900;font-style:italic;letter-spacing:-.04em;
+  color:var(--sang);margin:0 0 8px;
+}
+#go-score{color:#9ca3af;font-size:15px;margin:0 0 28px;}
+
+/* ---------- Pause ---------- */
+#btn-pause{
+  position:fixed;z-index:7;pointer-events:auto;touch-action:none;
+  top:calc(var(--safe-t) + 74px);right:calc(var(--safe-r) + 12px);
+  width:38px;height:38px;border-radius:10px;
+  background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);
+  color:#9ca3af;font-size:13px;display:flex;align-items:center;justify-content:center;
+}
+#ecran-pause{background:rgba(0,0,0,.86);}
+
+@media (min-width:900px){
+  #pouce{display:none;}
+  #btn-pause{display:none;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="jeu"></canvas>
+
+<div id="hud">
+  <div class="bandeau">
+    <div class="plaque duo">
+      <div>
+        <div class="etiquette">Horde</div>
+        <div class="chiffre" id="n-horde" style="color:var(--vert-vif)">1</div>
+      </div>
+      <div>
+        <div class="etiquette">Proies</div>
+        <div class="chiffre" id="n-proies" style="color:var(--proie)">0</div>
+      </div>
+    </div>
+    <div class="plaque" style="text-align:right">
+      <div class="etiquette">Quartier</div>
+      <div class="chiffre" id="n-quartier" style="color:var(--ambre)">1</div>
+      <div class="vie-piste"><div class="vie-jauge" id="vie"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="btn-pause">❚❚</div>
+
+<div id="pouce">
+  <div class="bouton" id="btn-lancer">
+    <div class="voile" id="voile-lancer" style="height:0;background:rgba(239,68,68,.3)"></div>
+    <div class="titre">Lancer</div>
+    <div class="sous">Tirer</div>
+  </div>
+  <div class="bouton" id="btn-masse">
+    <div class="titre">Masse</div>
+    <div class="sous">Maintenir</div>
+  </div>
+  <div class="bouton" id="btn-charge">
+    <div class="voile" id="voile-charge" style="height:0;background:rgba(251,191,36,.22)"></div>
+    <div class="titre">Charge</div>
+    <div class="sous">Collective</div>
+  </div>
+</div>
+
+<div class="ecran" id="ecran-demarrage">
+  <h1 class="titre-jeu">LA<br>HORDE</h1>
+  <p class="accroche">
+    <b>Vous êtes le zombie.</b><br>
+    Une ville. Des vivants. Aucune explication.
+  </p>
+  <button class="cta" id="cta-demarrer">Infecter la ville</button>
+  <div class="aide" id="aide-controles"></div>
+</div>
+
+<div class="ecran cache" id="ecran-fin">
+  <h1 id="go-titre">HORDE ÉCRASÉE</h1>
+  <p id="go-score"></p>
+  <button class="cta" id="cta-rejouer">Recommencer</button>
+</div>
+
+<div class="ecran cache" id="ecran-pause">
+  <h1 class="titre-jeu" style="font-size:clamp(32px,10vw,60px)">PAUSE</h1>
+  <button class="cta" id="cta-reprendre" style="margin-top:26px">Reprendre</button>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   LA HORDE — v0.4.0 "mobile"
+   Refonte tactile : caméra à échelle, delta-time, entrées unifiées pointer,
+   HUD sans écriture DOM par frame, lancer à la fronde, agglutination.
+   ========================================================================= */
+
+const CONFIG = {
+  // vitesses exprimées en unités-monde par frame de référence (60 fps)
+  zombieSpeed: 2.8,
+  humanSpeed: 3.5,
+  soldierSpeed: 2.0,
+
+  dashMultiplier: 2.5,
+  dashDuration: 40,
+  dashCooldown: 300,
+
+  infectionRadius: 18,
+  viewRadius: 300,
+  shootRange: 350,
+  shootCooldown: 70,
+  bulletSpeed: 7,
+
+  // agglutination
+  masseRayon: 26,
+  masseEcart: 15,
+
+  // lancer
+  lancerDistMin: 170,
+  lancerDistMax: 720,
+  lancerRayonSouffle: 95,
+  lancerSeuilTap: 16,     // px de drag en-dessous desquels on considère un tap
+  lancerCourse: 115,      // px de drag pour puissance max
+  lancerRecharge: 45,
+
+  worldWidth: 2400,
+  worldHeight: 2400,
+
+  // caméra
+  spanCible: 620,         // unités-monde visibles sur la plus petite dimension
+  zoomMin: 0.45,
+  zoomMax: 1.25,
+
+  colors: {
+    bg:'#0a0b0a',
+    grille:'#151815',
+    alpha:'#4ade80',
+    zombie:'#166534',
+    civilian:'#60a5fa',
+    soldier:'#ef4444',
+    bullet:'#fbbf24',
+    building:'#2c3444',
+    buildingStroke:'#161c26'
+  }
+};
+
+const canvas = document.getElementById('jeu');
+const ctx = canvas.getContext('2d', { alpha:false });
+
+const vue = { w:0, h:0, dpr:1, scale:1, tactile:false };
+const cam = { x:0, y:0, shake:0 };
+
+const state = {
+  entities: [], bullets: [], particles: [], buildings: [], thrown: [],
+  player: null,
+  level: 1,
+  gameOver: false,
+  paused: false,
+  demarre: false,
+  dashTimer: 0,
+  dashCooldownTimer: 0,
+  lancerRecharge: 0,
+  tick: 0
+};
+
+const input = {
+  joy:  { id:null, ox:0, oy:0, x:0, y:0, dx:0, dy:0 },   // dx/dy = vecteur normalisé (0..1)
+  cmd:  { id:null, actif:false, sx:0, sy:0, wx:0, wy:0 },
+  vise: { id:null, actif:false, ox:0, oy:0, dx:0, dy:0, puissance:0 },
+  masse: false,
+  dashDemande: false,
+  facing: 0
+};
+
+const keys = { haut:false, bas:false, gauche:false, droite:false };
+
+/* ---------------------------------------------------------------- utils */
+const clamp = (v,a,b) => v < a ? a : (v > b ? b : v);
+const dist2 = (ax,ay,bx,by) => { const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
+
+function buzz(ms){ if (navigator.vibrate) { try { navigator.vibrate(ms); } catch(e){} } }
+function secousse(force){ cam.shake = Math.min(18, cam.shake + force); }
+
+/* ------------------------------------------------------------- caméra */
+function calculerZoom(){
+  const petit = Math.min(vue.w, vue.h);
+  vue.scale = clamp(petit / CONFIG.spanCible, CONFIG.zoomMin, CONFIG.zoomMax);
+}
+function spanW(){ return vue.w / vue.scale; }
+function spanH(){ return vue.h / vue.scale; }
+
+function ecranVersMonde(sx, sy){
+  return { x: cam.x + sx / vue.scale, y: cam.y + sy / vue.scale };
+}
+
+function redimensionner(){
+  const w = window.innerWidth, h = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  vue.w = w; vue.h = h; vue.dpr = dpr;
+  canvas.width  = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  calculerZoom();
+}
+
+/* ------------------------------------------------------------ classes */
+class Building {
+  constructor(x,y,w,h){ this.x=x; this.y=y; this.w=w; this.h=h; }
+
+  draw(ctx){
+    ctx.fillStyle = CONFIG.colors.building;
+    ctx.strokeStyle = CONFIG.colors.buildingStroke;
+    ctx.lineWidth = 4 / vue.scale;
+    ctx.fillRect(this.x, this.y, this.w, this.h);
+    ctx.strokeRect(this.x, this.y, this.w, this.h);
+    ctx.strokeStyle = 'rgba(255,255,255,.045)';
+    ctx.lineWidth = 1 / vue.scale;
+    ctx.strokeRect(this.x+10, this.y+10, this.w-20, this.h-20);
+  }
+
+  resolveCollision(e){
+    const cx = clamp(e.x, this.x, this.x + this.w);
+    const cy = clamp(e.y, this.y, this.y + this.h);
+    const dx = e.x - cx, dy = e.y - cy;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < e.radius * e.radius){
+      const d = Math.sqrt(d2);
+      if (d === 0){ e.x -= 1; return; }
+      const ov = e.radius - d;
+      e.x += (dx/d) * ov;
+      e.y += (dy/d) * ov;
+    }
+  }
+
+  contains(x,y,pad=0){
+    return x >= this.x-pad && x <= this.x+this.w+pad &&
+           y >= this.y-pad && y <= this.y+this.h+pad;
+  }
+}
+
+class Entity {
+  constructor(x,y,radius,color,type){
+    this.x=x; this.y=y; this.radius=radius; this.color=color; this.type=type;
+    this.vx=0; this.vy=0;
+    this.health=100; this.maxHealth=100;
+    this.dead=false;
+    this.panicSeed = Math.random()*1000;
+    this.wanderT = Math.random()*120;
+    this.cooldown = 0;
+  }
+
+  update(dt){
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    const b = state.buildings;
+    for (let i=0;i<b.length;i++) b[i].resolveCollision(this);
+    this.x = clamp(this.x, this.radius, CONFIG.worldWidth - this.radius);
+    this.y = clamp(this.y, this.radius, CONFIG.worldHeight - this.radius);
+  }
+
+  draw(ctx){
+    const lw = 2 / vue.scale;
+
+    if (state.dashTimer > 0 && (this.type === 'player' || this.type === 'zombie')){
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius + 5, 0, 6.2832);
+      ctx.fillStyle = 'rgba(34,197,94,.18)';
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, 6.2832);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = '#000';
+    ctx.stroke();
+
+    if (this.type === 'player'){
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = lw;
+      ctx.stroke();
+    }
+
+    if ((this.type === 'player' || this.type === 'soldier') && this.health < this.maxHealth){
+      const bw = 26, bh = 4 / vue.scale;
+      const y = this.y - this.radius - 11;
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(this.x - bw/2, y, bw, bh);
+      ctx.fillStyle = this.type === 'player' ? '#4ade80' : '#ef4444';
+      ctx.fillRect(this.x - bw/2, y, bw * (this.health/this.maxHealth), bh);
+    }
+  }
+}
+
+class Bullet {
+  constructor(x,y,tx,ty){
+    this.x=x; this.y=y; this.radius=3;
+    const a = Math.atan2(ty-y, tx-x);
+    this.vx = Math.cos(a)*CONFIG.bulletSpeed;
+    this.vy = Math.sin(a)*CONFIG.bulletSpeed;
+    this.dead=false;
+  }
+  update(dt){
+    this.x += this.vx*dt; this.y += this.vy*dt;
+    const b = state.buildings;
+    for (let i=0;i<b.length;i++) if (b[i].contains(this.x,this.y)){ this.dead=true; return; }
+    if (this.x<0||this.x>CONFIG.worldWidth||this.y<0||this.y>CONFIG.worldHeight) this.dead=true;
+  }
+  draw(ctx){
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, 6.2832);
+    ctx.fillStyle = CONFIG.colors.bullet; ctx.fill();
+  }
+}
+
+class Particle {
+  constructor(x,y,color,force){
+    const f = force || 6;
+    this.x=x; this.y=y;
+    this.vx=(Math.random()-.5)*f;
+    this.vy=(Math.random()-.5)*f;
+    this.life=1; this.color=color;
+  }
+  update(dt){ this.x += this.vx*dt; this.y += this.vy*dt; this.life -= .04*dt; }
+  draw(ctx){
+    ctx.globalAlpha = Math.max(0, this.life);
+    ctx.fillStyle = this.color;
+    const s = 3 / vue.scale + 1;
+    ctx.fillRect(this.x, this.y, s, s);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* Zombie en vol : trajectoire en arc, explosion à l'impact, pas de résurrection. */
+class Thrown {
+  constructor(x,y,tx,ty){
+    this.x0=x; this.y0=y; this.tx=tx; this.ty=ty;
+    this.x=x; this.y=y;
+    const d = Math.hypot(tx-x, ty-y);
+    this.duree = 18 + d*0.045;
+    this.hauteur = 26 + d*0.11;
+    this.t = 0;
+    this.z = 0;
+    this.dead = false;
+    this.spin = Math.random()*6.28;
+  }
+  update(dt){
+    this.t += dt;
+    const p = Math.min(1, this.t/this.duree);
+    this.x = this.x0 + (this.tx-this.x0)*p;
+    this.y = this.y0 + (this.ty-this.y0)*p;
+    this.z = Math.sin(Math.PI*p) * this.hauteur;
+    this.spin += 0.25*dt;
+    if (p >= 1){ this.dead = true; exploser(this.x, this.y); }
+  }
+  draw(ctx){
+    // ombre au sol
+    ctx.globalAlpha = .35;
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y, 9, 4.5, 0, 0, 6.2832);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.translate(this.x, this.y - this.z);
+    ctx.rotate(this.spin);
+    ctx.beginPath();
+    ctx.arc(0,0,12,0,6.2832);
+    ctx.fillStyle = CONFIG.colors.zombie; ctx.fill();
+    ctx.lineWidth = 2/vue.scale; ctx.strokeStyle = '#000'; ctx.stroke();
+    ctx.fillStyle = 'rgba(74,222,128,.9)';
+    ctx.fillRect(-11,-2,8,4);
+    ctx.restore();
+  }
+}
+
+/* ------------------------------------------------------- monde / niveau */
+function spawnParticles(x,y,color,count,force){
+  for (let i=0;i<count;i++) state.particles.push(new Particle(x,y,color,force));
+}
+
+function genererNiveau(level){
+  state.buildings=[]; state.entities=[]; state.bullets=[];
+  state.particles=[]; state.thrown=[]; state.tick=0;
+  state.dashTimer=0; state.dashCooldownTimer=0; state.lancerRecharge=0;
+
+  const cell = 400;
+  for (let gx=0; gx<CONFIG.worldWidth; gx+=cell){
+    for (let gy=0; gy<CONFIG.worldHeight; gy+=cell){
+      if (Math.random() > .3){
+        const bw = 150 + Math.random()*150;
+        const bh = 150 + Math.random()*150;
+        const bx = gx + (cell-bw)/2;
+        const by = gy + (cell-bh)/2;
+        if (Math.hypot(bx+bw/2 - CONFIG.worldWidth/2, by+bh/2 - CONFIG.worldHeight/2) > 300){
+          state.buildings.push(new Building(bx,by,bw,bh));
+        }
+      }
+    }
+  }
+
+  state.player = new Entity(CONFIG.worldWidth/2, CONFIG.worldHeight/2, 16, CONFIG.colors.alpha, 'player');
+  state.player.health = 200; state.player.maxHealth = 200;
+  state.entities.push(state.player);
+
+  for (let i=0;i<15 + level*5;i++) spawnEntity('civilian');
+  for (let i=0;i<3  + level*2;i++) spawnEntity('soldier');
+
+  cam.x = clamp(state.player.x - spanW()/2, 0, Math.max(0, CONFIG.worldWidth - spanW()));
+  cam.y = clamp(state.player.y - spanH()/2, 0, Math.max(0, CONFIG.worldHeight - spanH()));
+}
+
+function spawnEntity(type){
+  const civil = type === 'civilian';
+  let x, y, essais = 0;
+  do {
+    x = Math.random()*CONFIG.worldWidth;
+    y = Math.random()*CONFIG.worldHeight;
+    essais++;
+  } while (essais < 200 && (dist2(x,y,state.player.x,state.player.y) < 360000 ||
+           state.buildings.some(b => b.contains(x,y,30))));
+
+  const e = new Entity(x, y, civil?12:14, civil?CONFIG.colors.civilian:CONFIG.colors.soldier, type);
+  if (!civil) e.cooldown = Math.random()*60;
+  state.entities.push(e);
+}
+
+/* ------------------------------------------------------------- lancer */
+function zombieLePlusProche(){
+  let best=null, bd=Infinity;
+  for (const e of state.entities){
+    if (e.type !== 'zombie' || e.dead) continue;
+    const d = dist2(e.x,e.y,state.player.x,state.player.y);
+    if (d < bd){ bd=d; best=e; }
+  }
+  return best;
+}
+
+function cibleLancer(){
+  const a = input.vise;
+  let ang, puissance;
+  if (a.puissance <= 0.02){
+    ang = input.facing; puissance = 0.5;
+  } else {
+    ang = Math.atan2(a.dy, a.dx); puissance = a.puissance;
+  }
+  const d = CONFIG.lancerDistMin + (CONFIG.lancerDistMax - CONFIG.lancerDistMin) * puissance;
+  return {
+    x: clamp(state.player.x + Math.cos(ang)*d, 20, CONFIG.worldWidth-20),
+    y: clamp(state.player.y + Math.sin(ang)*d, 20, CONFIG.worldHeight-20)
+  };
+}
+
+function lancerZombie(){
+  if (state.lancerRecharge > 0) return;
+  const z = zombieLePlusProche();
+  if (!z) return;
+  const c = cibleLancer();
+  z.dead = true;
+  state.thrown.push(new Thrown(z.x, z.y, c.x, c.y));
+  state.lancerRecharge = CONFIG.lancerRecharge;
+  buzz(12);
+}
+
+function exploser(x,y){
+  spawnParticles(x, y, CONFIG.colors.alpha, 18, 11);
+  spawnParticles(x, y, CONFIG.colors.soldier, 10, 8);
+  secousse(9);
+  buzz(30);
+  const r2 = CONFIG.lancerRayonSouffle * CONFIG.lancerRayonSouffle;
+  for (const e of state.entities){
+    if (e.dead) continue;
+    if (e.type !== 'civilian' && e.type !== 'soldier') continue;
+    if (dist2(e.x,e.y,x,y) < r2){
+      infecter(e);
+      const a = Math.atan2(e.y-y, e.x-x);
+      e.vx += Math.cos(a)*4; e.vy += Math.sin(a)*4;
+    }
+  }
+}
+
+function infecter(h){
+  h.type = 'zombie';
+  h.color = CONFIG.colors.zombie;
+  h.radius = 13;
+  spawnParticles(h.x, h.y, CONFIG.colors.soldier, 8);
+}
+
+/* -------------------------------------------------------------- update */
+function update(dt){
+  state.tick += dt;
+
+  /* --- charge collective --- */
+  if (input.dashDemande){
+    input.dashDemande = false;
+    if (state.dashCooldownTimer <= 0){
+      state.dashTimer = CONFIG.dashDuration;
+      state.dashCooldownTimer = CONFIG.dashCooldown;
+      secousse(4); buzz(18);
+    }
+  }
+  let mult = 1;
+  if (state.dashTimer > 0){
+    mult = CONFIG.dashMultiplier;
+    state.dashTimer -= dt;
+  }
+  if (state.dashCooldownTimer > 0) state.dashCooldownTimer -= dt;
+  if (state.lancerRecharge > 0) state.lancerRecharge -= dt;
+
+  /* --- déplacement du Patient Zéro --- */
+  let ix = input.joy.dx, iy = input.joy.dy;
+  let kx = 0, ky = 0;
+  if (keys.haut) ky -= 1;
+  if (keys.bas) ky += 1;
+  if (keys.gauche) kx -= 1;
+  if (keys.droite) kx += 1;
+  if (kx || ky){ const l = Math.hypot(kx,ky); ix = kx/l; iy = ky/l; }
+
+  const mag = Math.hypot(ix,iy);
+  if (mag > 0.05){
+    const n = mag > 1 ? 1/mag : 1;
+    state.player.vx = ix*n * CONFIG.zombieSpeed * mult;
+    state.player.vy = iy*n * CONFIG.zombieSpeed * mult;
+    input.facing = Math.atan2(iy,ix);
+  } else {
+    state.player.vx = 0; state.player.vy = 0;
+  }
+
+  /* --- listes de travail --- */
+  const zombies = [], humans = [];
+  for (const e of state.entities){
+    if (e.dead) continue;
+    if (e.type === 'zombie') zombies.push(e);
+    else if (e.type === 'civilian' || e.type === 'soldier') humans.push(e);
+  }
+
+  const cmdActif = input.cmd.actif && !input.masse;
+  if (input.cmd.actif){
+    const m = ecranVersMonde(input.cmd.sx, input.cmd.sy);
+    input.cmd.wx = m.x; input.cmd.wy = m.y;
+  }
+
+  /* --- IA --- */
+  for (const ent of state.entities){
+    if (ent.dead) continue;
+
+    if (ent.type === 'player'){ ent.update(dt); continue; }
+
+    if (ent.type === 'zombie'){
+      const zs = CONFIG.zombieSpeed * mult;
+
+      if (input.masse){
+        // AGGLUTINATION : la horde se tasse en bouclier autour de Zéro
+        const a = Math.atan2(state.player.y - ent.y, state.player.x - ent.x);
+        const d = Math.hypot(state.player.x - ent.x, state.player.y - ent.y);
+        const s = d > CONFIG.masseRayon ? zs * 1.4 : -zs * 0.35;
+        ent.vx = Math.cos(a)*s; ent.vy = Math.sin(a)*s;
+      } else if (cmdActif){
+        const a = Math.atan2(input.cmd.wy - ent.y, input.cmd.wx - ent.x);
+        const d = Math.hypot(input.cmd.wx - ent.x, input.cmd.wy - ent.y);
+        const s = d > 20 ? zs*1.3 : 0;
+        ent.vx = Math.cos(a)*s; ent.vy = Math.sin(a)*s;
+      } else {
+        let proie = null, bd = CONFIG.viewRadius*CONFIG.viewRadius;
+        for (const h of humans){
+          const d = dist2(ent.x,ent.y,h.x,h.y);
+          if (d < bd){ bd = d; proie = h; }
+        }
+        if (proie){
+          const a = Math.atan2(proie.y-ent.y, proie.x-ent.x);
+          ent.vx = Math.cos(a)*zs*1.2; ent.vy = Math.sin(a)*zs*1.2;
+        } else {
+          const a = Math.atan2(state.player.y-ent.y, state.player.x-ent.x);
+          const s = dist2(ent.x,ent.y,state.player.x,state.player.y) > 10000 ? zs : zs*0.4;
+          ent.vx = Math.cos(a)*s; ent.vy = Math.sin(a)*s;
+        }
+      }
+
+      // séparation (plus serrée en mode Masse)
+      const ecart = input.masse ? CONFIG.masseEcart : 25;
+      const ec2 = ecart*ecart;
+      for (const z of zombies){
+        if (z === ent) continue;
+        if (dist2(ent.x,ent.y,z.x,z.y) < ec2){
+          ent.vx += (ent.x - z.x)*0.1;
+          ent.vy += (ent.y - z.y)*0.1;
+        }
+      }
+      const dp = input.masse ? 18 : 35;
+      if (dist2(ent.x,ent.y,state.player.x,state.player.y) < dp*dp){
+        ent.vx += (ent.x - state.player.x)*0.2;
+        ent.vy += (ent.y - state.player.y)*0.2;
+      }
+    }
+
+    else { // civilian / soldier
+      let menace = null, dMin = 62500; // 250²
+      if (dist2(ent.x,ent.y,state.player.x,state.player.y) < dMin){
+        dMin = dist2(ent.x,ent.y,state.player.x,state.player.y); menace = state.player;
+      }
+      for (const z of zombies){
+        const d = dist2(ent.x,ent.y,z.x,z.y);
+        if (d < dMin){ dMin = d; menace = z; }
+      }
+
+      if (menace){
+        let ang = Math.atan2(ent.y - menace.y, ent.x - menace.x);
+        ang += Math.sin(state.tick*0.1 + ent.panicSeed) * (Math.PI/4);
+
+        const marge = 100;
+        if (ent.x < marge) ang = 0;
+        else if (ent.x > CONFIG.worldWidth - marge) ang = Math.PI;
+        if (ent.y < marge) ang = Math.PI/2;
+        else if (ent.y > CONFIG.worldHeight - marge) ang = -Math.PI/2;
+
+        const s = ent.type === 'soldier' ? CONFIG.soldierSpeed : CONFIG.humanSpeed;
+        ent.vx = Math.cos(ang)*s;
+        ent.vy = Math.sin(ang)*s;
+      } else {
+        ent.wanderT -= dt;
+        if (ent.wanderT <= 0){
+          ent.wanderT = 120;
+          ent.vx = (Math.random()-.5)*.5;
+          ent.vy = (Math.random()-.5)*.5;
+        }
+      }
+
+      if (ent.type === 'soldier'){
+        ent.cooldown -= dt;
+        if (menace && dMin < CONFIG.shootRange*CONFIG.shootRange && ent.cooldown <= 0){
+          state.bullets.push(new Bullet(ent.x, ent.y, menace.x, menace.y));
+          ent.cooldown = CONFIG.shootCooldown;
+        }
+      }
+    }
+
+    ent.update(dt);
+  }
+
+  /* --- balles --- */
+  for (const b of state.bullets){
+    b.update(dt);
+    if (b.dead) continue;
+    // la horde sert de bouclier : les zombies encaissent en priorité
+    let touche = false;
+    for (const z of zombies){
+      if (z.dead) continue;
+      const r = z.radius + b.radius;
+      if (dist2(z.x,z.y,b.x,b.y) < r*r){
+        z.dead = true; b.dead = true; touche = true;
+        spawnParticles(z.x, z.y, CONFIG.colors.zombie, 6);
+        break;
+      }
+    }
+    if (!touche){
+      const p = state.player;
+      const r = p.radius + b.radius;
+      if (dist2(p.x,p.y,b.x,b.y) < r*r){
+        b.dead = true;
+        p.health -= 8;
+        secousse(3); buzz(25);
+        if (p.health <= 0){ finPartie(); return; }
+      }
+    }
+  }
+  state.bullets = state.bullets.filter(b => !b.dead);
+
+  /* --- contagion --- */
+  const ri2 = CONFIG.infectionRadius*CONFIG.infectionRadius;
+  for (const h of humans){
+    if (h.dead || h.type === 'zombie') continue;
+    if (dist2(state.player.x,state.player.y,h.x,h.y) < ri2){ infecter(h); continue; }
+    for (const z of zombies){
+      if (dist2(z.x,z.y,h.x,h.y) < ri2){ infecter(h); break; }
+    }
+  }
+
+  /* --- projectiles / particules --- */
+  for (const t of state.thrown) t.update(dt);
+  state.thrown = state.thrown.filter(t => !t.dead);
+
+  state.entities = state.entities.filter(e => !e.dead);
+
+  for (const p of state.particles) p.update(dt);
+  state.particles = state.particles.filter(p => p.life > 0);
+
+  /* --- caméra --- */
+  const cibleX = state.player.x - spanW()/2;
+  const cibleY = state.player.y - spanH()/2;
+  cam.x += (cibleX - cam.x) * Math.min(1, 0.1*dt);
+  cam.y += (cibleY - cam.y) * Math.min(1, 0.1*dt);
+  cam.x = clamp(cam.x, 0, Math.max(0, CONFIG.worldWidth  - spanW()));
+  cam.y = clamp(cam.y, 0, Math.max(0, CONFIG.worldHeight - spanH()));
+  if (cam.shake > 0) cam.shake = Math.max(0, cam.shake - 0.6*dt);
+
+  /* --- fin de quartier --- */
+  let reste = 0;
+  for (const e of state.entities) if (e.type === 'civilian' || e.type === 'soldier') reste++;
+  if (reste === 0) niveauSuivant();
+
+  majHUD();
+}
+
+/* ---------------------------------------------------------------- rendu */
+function draw(){
+  const dpr = vue.dpr, s = vue.scale;
+  const sx = cam.shake ? (Math.random()-.5)*cam.shake : 0;
+  const sy = cam.shake ? (Math.random()-.5)*cam.shake : 0;
+
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = CONFIG.colors.bg;
+  ctx.fillRect(0,0,vue.w,vue.h);
+
+  ctx.setTransform(dpr*s, 0, 0, dpr*s, (-cam.x + sx)*dpr*s, (-cam.y + sy)*dpr*s);
+
+  const gx0 = cam.x, gy0 = cam.y, gx1 = cam.x + spanW(), gy1 = cam.y + spanH();
+  const pas = 100;
+  ctx.strokeStyle = CONFIG.colors.grille;
+  ctx.lineWidth = 1/s;
+  ctx.beginPath();
+  for (let x = Math.floor(gx0/pas)*pas; x < gx1; x += pas){ ctx.moveTo(x,gy0); ctx.lineTo(x,gy1); }
+  for (let y = Math.floor(gy0/pas)*pas; y < gy1; y += pas){ ctx.moveTo(gx0,y); ctx.lineTo(gx1,y); }
+  ctx.stroke();
+
+  const pad = 220;
+  for (const b of state.buildings){
+    if (b.x > gx1+pad || b.x+b.w < gx0-pad || b.y > gy1+pad || b.y+b.h < gy0-pad) continue;
+    b.draw(ctx);
+  }
+
+  // repère de commandement
+  if (input.cmd.actif && !input.masse){
+    const puls = Math.sin(Date.now()*0.008)*8;
+    ctx.beginPath();
+    ctx.arc(input.cmd.wx, input.cmd.wy, 26+puls, 0, 6.2832);
+    ctx.strokeStyle = 'rgba(74,222,128,.45)';
+    ctx.lineWidth = 2/s;
+    ctx.stroke();
+  }
+
+  // halo d'agglutination
+  if (input.masse && state.player){
+    const puls = Math.sin(Date.now()*0.012)*4;
+    ctx.beginPath();
+    ctx.arc(state.player.x, state.player.y, CONFIG.masseRayon + 14 + puls, 0, 6.2832);
+    ctx.strokeStyle = 'rgba(74,222,128,.28)';
+    ctx.lineWidth = 3/s;
+    ctx.stroke();
+  }
+
+  // prévisualisation du lancer
+  if (input.vise.actif && state.player) dessinerTrajectoire(ctx);
+
+  for (const e of state.entities){
+    if (e.x > gx1+80 || e.x < gx0-80 || e.y > gy1+80 || e.y < gy0-80) continue;
+    e.draw(ctx);
+  }
+  for (const t of state.thrown) t.draw(ctx);
+  for (const b of state.bullets) b.draw(ctx);
+  for (const p of state.particles) p.draw(ctx);
+
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 10/s;
+  ctx.strokeRect(0,0,CONFIG.worldWidth,CONFIG.worldHeight);
+
+  // couche écran (joystick)
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if (input.joy.id !== null) dessinerJoystick(ctx);
+}
+
+function dessinerTrajectoire(ctx){
+  const c = cibleLancer();
+  const p = state.player;
+  const d = Math.hypot(c.x-p.x, c.y-p.y);
+  const h = 26 + d*0.11;
+  ctx.setLineDash([7/vue.scale, 7/vue.scale]);
+  ctx.lineWidth = 2/vue.scale;
+  ctx.strokeStyle = 'rgba(239,68,68,.55)';
+  ctx.beginPath();
+  for (let i=0;i<=16;i++){
+    const t = i/16;
+    const x = p.x + (c.x-p.x)*t;
+    const y = p.y + (c.y-p.y)*t - Math.sin(Math.PI*t)*h;
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, CONFIG.lancerRayonSouffle, 0, 6.2832);
+  ctx.strokeStyle = 'rgba(239,68,68,.3)';
+  ctx.stroke();
+}
+
+function dessinerJoystick(ctx){
+  const j = input.joy;
+  ctx.beginPath();
+  ctx.arc(j.ox, j.oy, 52, 0, 6.2832);
+  ctx.fillStyle = 'rgba(255,255,255,.05)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(74,222,128,.28)';
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(j.x, j.y, 24, 0, 6.2832);
+  ctx.fillStyle = 'rgba(74,222,128,.5)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+/* ------------------------------------------------------------------ HUD */
+const elHorde = document.getElementById('n-horde');
+const elProies = document.getElementById('n-proies');
+const elQuartier = document.getElementById('n-quartier');
+const elVie = document.getElementById('vie');
+const elVoileCharge = document.getElementById('voile-charge');
+const elVoileLancer = document.getElementById('voile-lancer');
+const btnCharge = document.getElementById('btn-charge');
+const btnLancer = document.getElementById('btn-lancer');
+
+const cacheHUD = { horde:-1, proies:-1, quartier:-1, vie:-1, charge:-1, lancer:-1, lancerOk:null };
+
+function majHUD(){
+  let h = 0, p = 0;
+  for (const e of state.entities){
+    if (e.type === 'zombie' || e.type === 'player') h++;
+    else if (e.type === 'civilian' || e.type === 'soldier') p++;
+  }
+  if (h !== cacheHUD.horde){ cacheHUD.horde = h; elHorde.textContent = h; }
+  if (p !== cacheHUD.proies){ cacheHUD.proies = p; elProies.textContent = p; }
+  if (state.level !== cacheHUD.quartier){ cacheHUD.quartier = state.level; elQuartier.textContent = state.level; }
+
+  const vie = Math.round(clamp(state.player.health/state.player.maxHealth,0,1)*100);
+  if (vie !== cacheHUD.vie){ cacheHUD.vie = vie; elVie.style.width = vie + '%'; }
+
+  const cd = Math.round(clamp(1 - state.dashCooldownTimer/CONFIG.dashCooldown, 0, 1)*100);
+  if (cd !== cacheHUD.charge){
+    cacheHUD.charge = cd;
+    elVoileCharge.style.height = cd + '%';
+    btnCharge.classList.toggle('actif', cd >= 100);
+    btnCharge.classList.toggle('eteint', cd < 100);
+  }
+
+  const lr = Math.round(clamp(1 - state.lancerRecharge/CONFIG.lancerRecharge, 0, 1)*100);
+  if (lr !== cacheHUD.lancer){ cacheHUD.lancer = lr; elVoileLancer.style.height = lr + '%'; }
+
+  const dispo = lr >= 100 && zombieLePlusProche() !== null;
+  if (dispo !== cacheHUD.lancerOk){
+    cacheHUD.lancerOk = dispo;
+    btnLancer.classList.toggle('eteint', !dispo);
+  }
+}
+
+/* ------------------------------------------------------- boucle de jeu */
+let dernier = 0;
+let rafId = null;
+
+function boucle(ts){
+  rafId = requestAnimationFrame(boucle);
+  if (!dernier) dernier = ts;
+  let dt = (ts - dernier)/16.6667;
+  dernier = ts;
+  if (dt > 3) dt = 3;           // reprise après onglet en arrière-plan
+  if (dt <= 0) return;
+
+  if (!state.paused && !state.gameOver) update(dt);
+  draw();
+}
+
+function demarrerBoucle(){
+  if (rafId === null){ dernier = 0; rafId = requestAnimationFrame(boucle); }
+}
+
+/* --------------------------------------------------- états de la partie */
+function niveauSuivant(){
+  state.level++;
+  const pv = Math.min(state.player.health + 70, state.player.maxHealth);
+  genererNiveau(state.level);
+  state.player.health = pv;
+  cacheHUD.vie = -1;
+}
+
+function finPartie(){
+  state.gameOver = true;
+  input.masse = false;
+  input.cmd.actif = false;
+  input.joy.id = null; input.joy.dx = 0; input.joy.dy = 0;
+  document.getElementById('go-score').textContent =
+    `Quartiers envahis : ${state.level - 1}`;
+  document.getElementById('ecran-fin').classList.remove('cache');
+  buzz([40,60,90]);
+}
+
+async function demarrerPartie(){
+  document.getElementById('ecran-demarrage').classList.add('cache');
+  document.getElementById('ecran-fin').classList.add('cache');
+  state.gameOver = false; state.paused = false; state.demarre = true;
+  state.level = 1;
+  genererNiveau(1);
+  cacheHUD.horde = cacheHUD.proies = cacheHUD.quartier = cacheHUD.vie = -1;
+  cacheHUD.charge = cacheHUD.lancer = -1; cacheHUD.lancerOk = null;
+  demarrerBoucle();
+  pleinEcran();
+  garderEcranAllume();
+}
+
+function basculerPause(force){
+  if (!state.demarre || state.gameOver) return;
+  state.paused = (typeof force === 'boolean') ? force : !state.paused;
+  document.getElementById('ecran-pause').classList.toggle('cache', !state.paused);
+  if (state.paused){ input.masse = false; input.cmd.actif = false; input.joy.id = null; input.joy.dx = 0; input.joy.dy = 0; }
+}
+
+async function pleinEcran(){
+  if (!vue.tactile) return;
+  const el = document.documentElement;
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen({ navigationUI:'hide' });
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } catch(e){}
+  try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('portrait'); } catch(e){}
+}
+
+let veille = null;
+async function garderEcranAllume(){
+  try { if ('wakeLock' in navigator) veille = await navigator.wakeLock.request('screen'); } catch(e){}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden){ basculerPause(true); }
+  else { dernier = 0; garderEcranAllume(); }
+});
+
+/* ------------------------------------------------------------- entrées */
+const ZONE_JOY = 0.5;   // moitié gauche de l'écran
+
+function zoneJoystick(x){ return x < vue.w * ZONE_JOY; }
+
+canvas.addEventListener('pointerdown', e => {
+  if (state.gameOver || state.paused || !state.demarre) return;
+  canvas.setPointerCapture(e.pointerId);
+
+  if (e.pointerType === 'mouse'){
+    if (e.button === 2){ input.vise.actif = false; viserSouris(e); lancerZombie(); return; }
+    input.cmd.id = e.pointerId; input.cmd.actif = true;
+    input.cmd.sx = e.clientX; input.cmd.sy = e.clientY;
+    return;
+  }
+
+  if (zoneJoystick(e.clientX) && input.joy.id === null){
+    input.joy.id = e.pointerId;
+    input.joy.ox = e.clientX; input.joy.oy = e.clientY;
+    input.joy.x  = e.clientX; input.joy.y  = e.clientY;
+    input.joy.dx = 0; input.joy.dy = 0;
+  } else if (input.cmd.id === null){
+    input.cmd.id = e.pointerId; input.cmd.actif = true;
+    input.cmd.sx = e.clientX; input.cmd.sy = e.clientY;
+  }
+});
+
+window.addEventListener('pointermove', e => {
+  if (e.pointerId === input.joy.id){
+    const dx = e.clientX - input.joy.ox;
+    const dy = e.clientY - input.joy.oy;
+    const d = Math.hypot(dx,dy);
+    const max = 52;
+    const k = d > max ? max/d : 1;
+    input.joy.x = input.joy.ox + dx*k;
+    input.joy.y = input.joy.oy + dy*k;
+    input.joy.dx = dx*k/max;
+    input.joy.dy = dy*k/max;
+  }
+  if (e.pointerId === input.cmd.id){
+    input.cmd.sx = e.clientX; input.cmd.sy = e.clientY;
+  }
+  if (e.pointerId === input.vise.id){
+    const dx = e.clientX - input.vise.ox;
+    const dy = e.clientY - input.vise.oy;
+    const d = Math.hypot(dx,dy);
+    input.vise.dx = dx; input.vise.dy = dy;
+    input.vise.puissance = d < CONFIG.lancerSeuilTap ? 0 : clamp((d - CONFIG.lancerSeuilTap)/CONFIG.lancerCourse, 0, 1);
+  }
+});
+
+function relacher(e){
+  if (e.pointerId === input.joy.id){
+    input.joy.id = null; input.joy.dx = 0; input.joy.dy = 0;
+  }
+  if (e.pointerId === input.cmd.id){
+    input.cmd.id = null; input.cmd.actif = false;
+  }
+  if (e.pointerId === input.vise.id){
+    input.vise.id = null;
+    if (input.vise.actif) lancerZombie();
+    input.vise.actif = false;
+    input.vise.puissance = 0; input.vise.dx = 0; input.vise.dy = 0;
+    btnLancer.classList.remove('presse');
+  }
+}
+window.addEventListener('pointerup', relacher);
+window.addEventListener('pointercancel', relacher);
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+function viserSouris(e){
+  const m = ecranVersMonde(e.clientX, e.clientY);
+  const a = Math.atan2(m.y - state.player.y, m.x - state.player.x);
+  const d = clamp(Math.hypot(m.x-state.player.x, m.y-state.player.y), CONFIG.lancerDistMin, CONFIG.lancerDistMax);
+  input.vise.dx = Math.cos(a); input.vise.dy = Math.sin(a);
+  input.vise.puissance = clamp((d - CONFIG.lancerDistMin)/(CONFIG.lancerDistMax - CONFIG.lancerDistMin), 0.02, 1);
+}
+
+/* --- boutons pouce --- */
+function bindMaintien(el, onDown, onUp){
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (state.gameOver || state.paused) return;
+    el.classList.add('presse');
+    onDown(e);
+  });
+  const fin = e => { el.classList.remove('presse'); onUp && onUp(e); };
+  el.addEventListener('pointerup', fin);
+  el.addEventListener('pointercancel', fin);
+  el.addEventListener('pointerleave', e => { if (el !== btnLancer) fin(e); });
+}
+
+bindMaintien(document.getElementById('btn-charge'), () => { input.dashDemande = true; });
+bindMaintien(document.getElementById('btn-masse'),  () => { input.masse = true; }, () => { input.masse = false; });
+
+btnLancer.addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  if (state.gameOver || state.paused) return;
+  if (state.lancerRecharge > 0 || !zombieLePlusProche()) return;
+  btnLancer.classList.add('presse');
+  input.vise.id = e.pointerId;
+  input.vise.actif = true;
+  input.vise.ox = e.clientX; input.vise.oy = e.clientY;
+  input.vise.dx = 0; input.vise.dy = 0; input.vise.puissance = 0;
+});
+
+document.getElementById('btn-pause').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation(); basculerPause();
+});
+
+/* --- clavier (desktop) --- */
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'z' || k === 'w' || e.key === 'ArrowUp') keys.haut = true;
+  if (k === 's' || e.key === 'ArrowDown') keys.bas = true;
+  if (k === 'q' || k === 'a' || e.key === 'ArrowLeft') keys.gauche = true;
+  if (k === 'd' || e.key === 'ArrowRight') keys.droite = true;
+  if (e.code === 'Space'){ input.dashDemande = true; e.preventDefault(); }
+  if (e.key === 'Shift') input.masse = true;
+  if (e.key === 'Escape' || k === 'p') basculerPause();
+});
+window.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'z' || k === 'w' || e.key === 'ArrowUp') keys.haut = false;
+  if (k === 's' || e.key === 'ArrowDown') keys.bas = false;
+  if (k === 'q' || k === 'a' || e.key === 'ArrowLeft') keys.gauche = false;
+  if (k === 'd' || e.key === 'ArrowRight') keys.droite = false;
+  if (e.key === 'Shift') input.masse = false;
+});
+
+/* ---------------------------------------------------------- démarrage */
+window.addEventListener('resize', redimensionner);
+window.addEventListener('orientationchange', () => setTimeout(redimensionner, 120));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', redimensionner);
+
+vue.tactile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+document.getElementById('aide-controles').innerHTML = vue.tactile
+  ? 'Pouce gauche <span>déplace Zéro</span><br>Pouce droit <span>dirige la horde</span><br>Charge · Masse · Lancer <span>à droite</span>'
+  : 'ZQSD <span>Zéro</span> · Clic <span>Horde</span> · Espace <span>Charge</span><br>Maj <span>Masse</span> · Clic droit <span>Lancer</span>';
+
+document.getElementById('cta-demarrer').addEventListener('click', demarrerPartie);
+document.getElementById('cta-rejouer').addEventListener('click', demarrerPartie);
+document.getElementById('cta-reprendre').addEventListener('click', () => basculerPause(false));
+
+redimensionner();
+</script>
+</body>
+</html>
