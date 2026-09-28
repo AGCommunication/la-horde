@@ -524,7 +524,6 @@
   const stopHold = () => { holding = false; clearInterval(holdTimer); };
   addEventListener('pointerup', stopHold);
   addEventListener('pointercancel', stopHold);
-  });
 
   /* ================= MUSIQUE (synthé cloches, Web Audio) ================= */
   const audio = { ctx: null, on: false, master: null, verb: null, timer: null, track: 0 };
