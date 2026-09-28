@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Encore combien de dodos ?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Titan+One&family=Nunito:wght@600;800;900&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --santa: #d90f1f;
+    --santa-deep: #7a0010;
+    --blood: #4a0008;
+    --gold: #ffcc2e;
+    --gold-hot: #fff27a;
+    --pine: #0c7a3a;
+    --pine-deep: #064d23;
+    --snow: #fffdf7;
+    --ink: #2a0005;
+    --display: "Mountains of Christmas", "Brush Script MT", cursive;
+    --digits: "Titan One", "Arial Black", Impact, sans-serif;
+    --body: "Nunito", "Trebuchet MS", system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--body);
+    color: var(--snow);
+    background: var(--santa-deep);
+  }
+
+  /* ---------- fond rouge qui pulse ---------- */
+  .sky {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(circle at 50% 42%, #ff3b3b 0%, var(--santa) 28%, var(--santa-deep) 62%, var(--blood) 100%);
+  }
+  .rays {
+    position: fixed; left: 50%; top: 42%;
+    width: 260vmax; height: 260vmax;
+    margin: -130vmax 0 0 -130vmax;
+    z-index: 0;
+    background: repeating-conic-gradient(from 0deg, rgba(255, 220, 90, .16) 0deg 9deg, rgba(255, 255, 255, 0) 9deg 18deg);
+    animation: spin 60s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  canvas#snow { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+
+  /* ---------- guirlande ---------- */
+  .garland {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 6;
+    height: 64px; pointer-events: none;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .garland svg.wire { position: absolute; left: 0; top: 0; width: 100%; height: 40px; }
+  .bulbs { position: absolute; inset: 0; }
+  .bulb {
+    position: absolute; width: 14px; height: 22px;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    transform: translateX(-50%);
+    animation: blink 1.2s steps(1) infinite;
+  }
+  .bulb::before {
+    content: ""; position: absolute; left: 3px; top: -6px; width: 8px; height: 7px;
+    background: #3a3a2a; border-radius: 2px;
+  }
+  @keyframes blink {
+    0% { opacity: 1; filter: brightness(1.3); }
+    50% { opacity: .35; filter: brightness(.7); box-shadow: none; }
+  }
+
+  /* ---------- scène centrale ---------- */
+  .stage {
+    position: relative; z-index: 4;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(10px, 2.2vh, 22px);
+    padding-inline: 16px;
+    padding-block: 72px 110px;
+    text-align: center;
+  }
+  .kicker {
+    font-weight: 900; text-transform: uppercase; letter-spacing: .22em;
+    font-size: clamp(12px, 1.6vw, 16px);
+    background: var(--pine); color: var(--snow);
+    padding: 8px 18px; border-radius: 999px;
+    border: 3px dashed var(--gold);
+    box-shadow: 0 6px 0 var(--pine-deep);
+    transform: rotate(-2deg);
+  }
+  h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(52px, 11vw, 150px);
+    line-height: .9;
+    text-wrap: balance;
+    color: var(--snow);
+    text-shadow:
+      0 0 0 var(--snow),
+      4px 4px 0 var(--pine),
+      8px 8px 0 var(--gold),
+      12px 12px 0 var(--ink),
+      0 0 40px rgba(255, 240, 150, .8);
+    animation: wobble 2.4s ease-in-out infinite;
+  }
+  h1 .star { color: var(--gold); display: inline-block; animation: twirl 3s linear infinite; }
+  @keyframes wobble { 0%, 100% { transform: rotate(-2deg) scale(1); } 50% { transform: rotate(2deg) scale(1.04); } }
+  @keyframes twirl { to { transform: rotate(360deg); } }
+
+  /* ---------- paquets cadeaux ---------- */
+  .gifts {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: clamp(10px, 2vw, 26px);
+    width: min(100%, 980px);
+    margin-top: 18px;
+  }
+  .gift {
+    --box: var(--pine);
+    --ribbon: var(--gold);
+    position: relative;
+    background: var(--box);
+    border-radius: 10px;
+    padding-block: clamp(18px, 3vw, 30px) clamp(12px, 2vw, 18px);
+    box-shadow: 0 10px 0 rgba(0, 0, 0, .35), inset 0 -8px 0 rgba(0, 0, 0, .2);
+    animation: hop 1.6s ease-in-out infinite;
+  }
+  .gift:nth-child(2) { --box: var(--gold); --ribbon: var(--santa); animation-delay: .15s; }
+  .gift:nth-child(3) { --box: var(--snow); --ribbon: var(--santa); animation-delay: .3s; }
+  .gift:nth-child(4) { --box: var(--santa); --ribbon: var(--snow); animation-delay: .45s; border: 3px solid var(--gold); }
+  .gift:nth-child(5) { --box: var(--pine); --ribbon: var(--santa); animation-delay: .6s; }
+  @keyframes hop { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-8px) rotate(1.5deg); } }
+  .gift::before { /* ruban vertical */
+    content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 16%;
+    transform: translateX(-50%); background: var(--ribbon); opacity: .9;
+  }
+  .bow {
+    position: absolute; left: 50%; top: -22px; width: 56px; height: 28px; transform: translateX(-50%);
+  }
+  .bow::before, .bow::after {
+    content: ""; position: absolute; top: 2px; width: 26px; height: 22px;
+    border: 6px solid var(--ribbon); border-radius: 50% 50% 50% 50%;
+    box-sizing: border-box;
+  }
+  .bow::before { left: 0; transform: rotate(-20deg); }
+  .bow::after { right: 0; transform: rotate(20deg); }
+  .num {
+    position: relative;
+    font-family: var(--digits);
+    font-size: clamp(34px, 8vw, 96px);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--snow);
+    -webkit-text-stroke: 2px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 3px 4px 0 var(--ink);
+  }
+  .gift:nth-child(3) .num { color: var(--santa); }
+  .unit {
+    position: relative; display: inline-block; margin-top: 8px;
+    font-weight: 900; text-transform: uppercase; letter-spacing: .12em;
+    font-size: clamp(10px, 1.5vw, 15px);
+    background: var(--ink); color: var(--gold);
+    padding: 4px 10px; border-radius: 6px;
+  }
+  .num.bump { animation: bump .35s ease-out; }
+  @keyframes bump { 0% { transform: scale(1.35) rotate(-6deg); } 100% { transform: scale(1) rotate(0); } }
+
+  .dodos {
+    font-weight: 900; font-size: clamp(16px, 2.6vw, 26px);
+    background: var(--snow); color: var(--santa);
+    padding: 10px 22px; border-radius: 14px;
+    box-shadow: 6px 6px 0 var(--pine);
+    transform: rotate(1.5deg);
+    max-width: 100%;
+  }
+  .dodos b { font-family: var(--digits); font-weight: 400; font-size: 1.3em; color: var(--pine); }
+  .dateline { font-weight: 800; font-size: clamp(12px, 1.6vw, 15px); opacity: .9; letter-spacing: .04em; }
+
+  /* ---------- boutons musique ---------- */
+  .controls {
+    position: fixed; z-index: 8; right: 16px; top: calc(56px + env(safe-area-inset-top, 0px));
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+  }
+  .btn {
+    font-family: var(--body); font-weight: 900; font-size: 15px;
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 10px 18px; cursor: pointer;
+    background: var(--gold); color: var(--ink);
+    box-shadow: 0 5px 0 var(--ink);
+    transition: transform .1s;
+  }
+  .btn:hover { transform: translateY(-2px) rotate(-2deg); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+  .btn:focus-visible { outline: 4px solid var(--snow); outline-offset: 3px; }
+  .btn.alt { background: var(--snow); }
+  .btn.pulse { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(1.08) rotate(-3deg); box-shadow: 0 5px 0 var(--ink), 0 0 30px var(--gold-hot); } }
+
+  /* ---------- colline de neige ---------- */
+  .hill { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none; }
+  .hill svg { display: block; width: 100%; height: 120px; }
+
+  /* ---------- traîneau ---------- */
+  .sleigh {
+    position: fixed; z-index: 7; top: 0; left: 0;
+    font-size: clamp(34px, 6vw, 64px);
+    white-space: nowrap; pointer-events: none;
+    filter: drop-shadow(0 0 12px rgba(255, 240, 150, .9));
+    will-change: transform;
+  }
+  .sleigh span { display: inline-block; }
+  .sleigh .deer { animation: gallop .35s ease-in-out infinite alternate; }
+  .sleigh .deer:nth-child(2n) { animation-delay: .17s; }
+  @keyframes gallop { from { transform: translateY(-4px) rotate(-8deg); } to { transform: translateY(4px) rotate(6deg); } }
+  .spark {
+    position: fixed; z-index: 7; pointer-events: none;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--gold-hot);
+    box-shadow: 0 0 10px var(--gold), 0 0 20px var(--gold);
+    animation: fade 1.2s ease-out forwards;
+  }
+  @keyframes fade { to { opacity: 0; transform: translateY(30px) scale(.2); } }
+
+  .burst {
+    position: fixed; z-index: 9; pointer-events: none;
+    font-size: 26px; animation: fly .9s ease-out forwards;
+  }
+  @keyframes fly { to { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(.4); opacity: 0; } }
+
+  .xmas h1 { font-size: clamp(56px, 13vw, 180px); }
+
+  @media (max-width: 640px) {
+    .gifts { grid-template-columns: repeat(6, minmax(0, 1fr)); row-gap: 34px; }
+    .gift { grid-column: span 2; }
+    .gift:nth-child(4) { grid-column: 2 / span 2; }
+    .gift:nth-child(5) { grid-column: 4 / span 2; }
+    .controls { top: auto; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); right: 50%; transform: translateX(50%); justify-content: center; width: max-content; max-width: calc(100% - 32px); }
+    .stage { padding-block: 64px 120px; }
+    h1 { text-shadow: 3px 3px 0 var(--pine), 6px 6px 0 var(--gold), 9px 9px 0 var(--ink); }
+  }
+  @media (max-height: 640px) and (min-width: 641px) {
+    .stage { padding-block: 60px 70px; }
+    h1 { font-size: clamp(44px, 9vw, 110px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<div class="rays" aria-hidden="true"></div>
+
+<div class="garland" aria-hidden="true">
+  <svg class="wire" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 4 Q 6.25 30 12.5 4 T 25 4 T 37.5 4 T 50 4 T 62.5 4 T 75 4 T 87.5 4 T 100 4" fill="none" stroke="#1d3a1d" stroke-width="0.6" vector-effect="non-scaling-stroke" style="stroke-width:3px"/></svg>
+  <div class="bulbs" id="bulbs"></div>
+</div>
+
+<canvas id="snow" aria-hidden="true"></canvas>
+
+<div class="controls">
+  <button class="btn pulse" id="play" type="button">🔔 Musique !</button>
+  <button class="btn alt" id="track" type="button">🎶 Jingle Bells</button>
+</div>
+
+<main class="stage" id="stage">
+  <div class="kicker" id="kicker">Compte à rebours officiel du Père Noël</div>
+  <h1 id="title"><span class="star">★</span> Noël arrive ! <span class="star">★</span></h1>
+
+  <div class="gifts" role="timer" aria-live="off" aria-label="Temps restant avant Noël">
+    <div class="gift"><div class="bow"></div><div class="num" id="mo">0</div><div class="unit">Mois</div></div>
+    <div class="gift"><div class="bow"></div><div class="num" id="d">0</div><div class="unit">Jours</div></div>
+    <div class="gift"><div class="bow"></div><div class="num" id="h">00</div><div class="unit">Heures</div></div>
+    <div class="gift"><div class="bow"></div><div class="num" id="mi">00</div><div class="unit">Minutes</div></div>
+    <div class="gift"><div class="bow"></div><div class="num" id="s">00</div><div class="unit">Secondes</div></div>
+  </div>
+
+  <div class="dodos" id="dodos">Encore <b id="nights">0</b> dodos avant les cadeaux !</div>
+  <div class="dateline" id="dateline">Réveillon le 24 décembre · Noël le 25 décembre</div>
+</main>
+
+<div class="hill" aria-hidden="true">
+  <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+    <path d="M0 60 C 150 10, 300 90, 450 50 S 750 10, 900 55 S 1100 30, 1200 50 L1200 120 L0 120 Z" fill="#e8f1ff"/>
+    <path d="M0 85 C 200 45, 380 110, 600 75 S 950 50, 1200 80 L1200 120 L0 120 Z" fill="#fffdf7"/>
+  </svg>
+</div>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ================= GUIRLANDE ================= */
+  const bulbs = document.getElementById('bulbs');
+  const bulbColors = ['#ff2a2a', '#ffcc2e', '#25d366', '#2ab7ff', '#ff5fd2'];
+  function buildBulbs() {
+    bulbs.innerHTML = '';
+    const n = Math.max(10, Math.round(innerWidth / 46));
+    for (let i = 0; i < n; i++) {
+      const x = (i + .5) / n;           // 0..1
+      const phase = (x * 8) % 1;        // 8 arches in the wire
+      const y = 4 + 26 * 4 * phase * (1 - phase) * 0.5 + 4; // matches quadratic sag
+      const b = document.createElement('div');
+      const c = bulbColors[i % bulbColors.length];
+      b.className = 'bulb';
+      b.style.left = (x * 100) + '%';
+      b.style.top = y + 'px';
+      b.style.background = c;
+      b.style.boxShadow = `0 0 12px 3px ${c}`;
+      b.style.animationDelay = (i % 3) * 0.4 + 's';
+      bulbs.appendChild(b);
+    }
+  }
+  buildBulbs();
+  addEventListener('resize', buildBulbs);
+
+  /* ================= NEIGE ================= */
+  const cv = document.getElementById('snow');
+  const cx = cv.getContext('2d');
+  let W, H, flakes = [];
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const target = reduce ? 60 : Math.round(Math.min(380, W * H / 3500));
+    while (flakes.length < target) flakes.push(newFlake(true));
+    flakes.length = target;
+  }
+  function newFlake(anywhere) {
+    const r = Math.random() ** 2 * 4.5 + 1;
+    return {
+      x: Math.random() * W, y: anywhere ? Math.random() * H : -10,
+      r, vy: 0.4 + r * 0.35, phase: Math.random() * 6.28, sway: 0.4 + Math.random() * 1.2,
+      o: 0.55 + Math.random() * 0.45
+    };
+  }
+  resize();
+  addEventListener('resize', resize);
+  let wind = 0, t0 = performance.now();
+  function snow(now) {
+    const t = (now - t0) / 1000;
+    wind = Math.sin(t * 0.25) * 0.8 + Math.sin(t * 0.07) * 0.6;
+    cx.clearRect(0, 0, W, H);
+    for (const f of flakes) {
+      f.y += f.vy;
+      f.x += Math.sin(t * f.sway + f.phase) * 0.5 + wind * (f.r / 3);
+      if (f.y > H + 10) Object.assign(f, newFlake(false));
+      if (f.x > W + 10) f.x = -10; else if (f.x < -10) f.x = W + 10;
+      cx.globalAlpha = f.o;
+      cx.fillStyle = '#ffffff';
+      cx.beginPath(); cx.arc(f.x, f.y, f.r, 0, 6.2832); cx.fill();
+      if (f.r > 3.6) { // gros flocons en étoile
+        cx.strokeStyle = '#ffffff'; cx.lineWidth = 1;
+        cx.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const a = k * Math.PI / 3 + t * 0.5;
+          cx.moveTo(f.x - Math.cos(a) * f.r * 2, f.y - Math.sin(a) * f.r * 2);
+          cx.lineTo(f.x + Math.cos(a) * f.r * 2, f.y + Math.sin(a) * f.r * 2);
+        }
+        cx.stroke();
+      }
+    }
+    cx.globalAlpha = 1;
+    requestAnimationFrame(snow);
+  }
+  requestAnimationFrame(snow);
+
+  /* ================= COMPTE À REBOURS ================= */
+  const $ = id => document.getElementById(id);
+  const els = { mo: $('mo'), d: $('d'), h: $('h'), mi: $('mi'), s: $('s') };
+  const last = {};
+
+  function addMonths(date, m) {
+    const d = new Date(date);
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + m);
+    const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, dim));
+    return d;
+  }
+  function targetFor(now) {
+    const y = now.getFullYear();
+    const xmas = new Date(y, 11, 25, 0, 0, 0);
+    const after = new Date(y, 11, 26, 0, 0, 0);
+    if (now >= after) return { target: new Date(y + 1, 11, 25), isToday: false };
+    if (now >= xmas) return { target: xmas, isToday: true };
+    return { target: xmas, isToday: false };
+  }
+  function set(key, val) {
+    if (last[key] === val) return;
+    last[key] = val;
+    const el = els[key];
+    el.textContent = val;
+    if (!reduce) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  }
+  let celebrated = false;
+  function tick() {
+    const now = new Date();
+    const { target, isToday } = targetFor(now);
+    if (isToday) {
+      ['mo', 'd', 'h', 'mi', 's'].forEach(k => set(k, k === 'mo' || k === 'd' ? '0' : '00'));
+      if (!celebrated) {
+        celebrated = true;
+        document.body.classList.add('xmas');
+        $('title').innerHTML = '<span class="star">★</span> JOYEUX NOËL !!! <span class="star">★</span>';
+        $('kicker').textContent = 'Il est passé ! Filez sous le sapin';
+        $('dodos').textContent = 'Zéro dodo. Les cadeaux sont là !';
+        setInterval(() => confetti(Math.random() * innerWidth, Math.random() * innerHeight * .6), 700);
+      }
+      $('dateline').textContent = `Nous sommes le 25 décembre ${now.getFullYear()}`;
+      return;
+    }
+    let months = 0;
+    while (addMonths(now, months + 1) <= target) months++;
+    const base = addMonths(now, months);
+    let ms = target - base;
+    const days = Math.floor(ms / 864e5); ms -= days * 864e5;
+    const hours = Math.floor(ms / 36e5); ms -= hours * 36e5;
+    const mins = Math.floor(ms / 6e4); ms -= mins * 6e4;
+    const secs = Math.floor(ms / 1e3);
+    set('mo', String(months));
+    set('d', String(days));
+    set('h', String(hours).padStart(2, '0'));
+    set('mi', String(mins).padStart(2, '0'));
+    set('s', String(secs).padStart(2, '0'));
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nights = Math.round((target - today) / 864e5);
+    $('nights').textContent = nights;
+    $('dodos').firstChild.textContent = nights === 1 ? 'Plus qu’' : 'Encore ';
+    $('dodos').lastChild.textContent = nights === 1 ? ' dodo avant les cadeaux !!!' : ' dodos avant les cadeaux !';
+    $('dateline').textContent = `Réveillon le 24 décembre · Noël le ${target.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+  }
+  tick();
+  setInterval(tick, 250);
+
+  /* ================= TRAÎNEAU & RENNES ================= */
+  function sleighPass() {
+    if (reduce) return;
+    const s = document.createElement('div');
+    s.className = 'sleigh';
+    // les émojis de renne regardent vers la gauche : le traîneau traverse de droite à gauche
+    s.innerHTML = '<span class="deer">🦌</span><span class="deer">🦌</span><span class="deer">🦌</span><span class="deer">🦌</span><span>✨</span><span>🛷</span><span>🎅</span><span>🎁</span>';
+    document.body.appendChild(s);
+    const w = s.offsetWidth;
+    const y0 = 70 + Math.random() * innerHeight * 0.32;
+    const dur = 7000 + Math.random() * 4000;
+    const amp = 20 + Math.random() * 40;
+    const start = performance.now();
+    let lastSpark = 0;
+    if (audio.on) sleighBells(dur / 1000);
+    function step(now) {
+      const p = (now - start) / dur;
+      if (p >= 1) { s.remove(); return; }
+      const x = innerWidth + 20 - p * (innerWidth + w + 40);
+      const y = y0 + Math.sin(p * Math.PI * 3) * amp - p * 60;
+      s.style.transform = `translate(${x}px, ${y}px) rotate(${Math.cos(p * Math.PI * 3) * -4}deg)`;
+      if (now - lastSpark > 45) {
+        lastSpark = now;
+        const k = document.createElement('div');
+        k.className = 'spark';
+        k.style.left = (x + w - 10 + Math.random() * 20) + 'px';
+        k.style.top = (y + s.offsetHeight * (.4 + Math.random() * .4)) + 'px';
+        document.body.appendChild(k);
+        setTimeout(() => k.remove(), 1200);
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function scheduleSleigh(first) {
+    setTimeout(() => { sleighPass(); scheduleSleigh(false); }, first ? 2500 : 11000 + Math.random() * 9000);
+  }
+  scheduleSleigh(true);
+
+  /* ================= CONFETTIS AU CLIC ================= */
+  const bits = ['⭐', '❄️', '🎁', '🔔', '✨', '🍬', '🎄'];
+  function confetti(x, y) {
+    if (reduce) return;
+    for (let i = 0; i < 14; i++) {
+      const b = document.createElement('div');
+      b.className = 'burst';
+      b.textContent = bits[i % bits.length];
+      const a = Math.random() * Math.PI * 2, r = 80 + Math.random() * 140;
+      b.style.left = (x - 13) + 'px'; b.style.top = (y - 13) + 'px';
+      b.style.setProperty('--dx', Math.cos(a) * r + 'px');
+      b.style.setProperty('--dy', Math.sin(a) * r + 'px');
+      b.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
+      document.body.appendChild(b);
+      setTimeout(() => b.remove(), 900);
+    }
+  }
+  addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    confetti(e.clientX, e.clientY);
+    if (audio.on) { const n = [79, 84, 88, 91][Math.floor(Math.random() * 4)]; bell(mtof(n), audio.ctx.currentTime, 2.5, 0.25); }
+  });
+
+  /* ================= MUSIQUE (synthé cloches, Web Audio) ================= */
+  const audio = { ctx: null, on: false, master: null, verb: null, timer: null, track: 0 };
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+
+  function initAudio() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const master = ctx.createGain(); master.gain.value = 0.55;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.ratio.value = 4;
+    // réverb d'église maison
+    const len = ctx.sampleRate * 2.6, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = ir.getChannelData(c);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.8);
+    }
+    const verb = ctx.createConvolver(); verb.buffer = ir;
+    const wet = ctx.createGain(); wet.gain.value = 0.35;
+    master.connect(comp); master.connect(verb); verb.connect(wet); wet.connect(comp);
+    comp.connect(ctx.destination);
+    Object.assign(audio, { ctx, master, verb });
+  }
+
+  // cloche : partiels inharmoniques qui décroissent
+  function bell(freq, t, dur, vol) {
+    const ctx = audio.ctx;
+    const partials = [[0.5, 0.35], [1, 1], [2, 0.55], [2.76, 0.4], [5.4, 0.22], [8.93, 0.1]];
+    partials.forEach(([ratio, amp], i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = freq * ratio;
+      const d = dur / (1 + i * 0.6);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol * amp, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(audio.master);
+      o.start(t); o.stop(t + d + 0.05);
+    });
+  }
+  function softBass(freq, t, dur, vol) {
+    const ctx = audio.ctx, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + dur + 0.05);
+  }
+  let noiseBuf;
+  function jingle(t, vol) { // grelot de traîneau
+    const ctx = audio.ctx;
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 7500; hp.Q.value = 2.5;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    src.connect(hp); hp.connect(g); g.connect(audio.master);
+    src.start(t); src.stop(t + 0.25);
+  }
+  function sleighBells(sec) {
+    const t = audio.ctx.currentTime;
+    for (let i = 0; i < sec * 8; i++) {
+      const fade = Math.sin(Math.PI * i / (sec * 8));
+      jingle(t + i * 0.125 + Math.random() * 0.02, 0.05 + 0.25 * fade);
+    }
+  }
+
+  // ---- Partitions (domaine public) ----
+  // Jingle Bells (J. Pierpont, 1857) — refrain, en do majeur, une octave au-dessus
+  function jingleBells() {
+    const A = [[64,1],[64,1],[64,2],[64,1],[64,1],[64,2],[64,1],[67,1],[60,1.5],[62,.5],[64,4]];
+    const B1 = [[65,1],[65,1],[65,1.5],[65,.5],[65,1],[64,1],[64,1],[64,.5],[64,.5],[64,1],[62,1],[62,1],[64,1],[62,2],[67,2]];
+    const B2 = [[65,1],[65,1],[65,1.5],[65,.5],[65,1],[64,1],[64,1],[64,.5],[64,.5],[67,1],[67,1],[65,1],[62,1],[60,4]];
+    const mel = [...A, ...B1, ...A, ...B2];
+    const ev = []; let b = 0;
+    mel.forEach(([m, d]) => { ev.push({ b, f: mtof(m + 12), d: Math.max(1.2, d * 0.9), v: 0.3, k: 'bell' }); b += d; });
+    const roots = [48, 48, 48, 48, 53, 48, 55, 55, 48, 48, 48, 48, 53, 48, 55, 48];
+    roots.forEach((r, i) => {
+      ev.push({ b: i * 4, f: mtof(r), d: 0.9, v: 0.22, k: 'bass' });
+      ev.push({ b: i * 4 + 2, f: mtof(r + 7), d: 0.9, v: 0.16, k: 'bass' });
+    });
+    for (let i = 0; i < 64; i++) ev.push({ b: i, v: i % 2 ? 0.07 : 0.12, k: 'jingle' }, { b: i + .5, v: 0.05, k: 'jingle' });
+    return { ev: ev.sort((a, z) => a.b - z.b), len: 64, spb: 0.3 };
+  }
+  // Shchedryk (M. Leontovych, 1916) — l'ostinato des « carol bells », en sol mineur
+  function carolBells() {
+    const ev = [];
+    const motif = [[70, 0, 1], [69, 1, .5], [70, 1.5, .5], [67, 2, 1]];
+    const bars = 24;
+    for (let bar = 0; bar < bars; bar++) {
+      const o = bar * 3;
+      motif.forEach(([m, t]) => ev.push({ b: o + t, f: mtof(m + 12), d: 1.4, v: 0.26, k: 'bell' }));
+      if (bar >= 4 && bar < 20) motif.forEach(([m, t]) => ev.push({ b: o + t, f: mtof(m + 16), d: 1.2, v: 0.12, k: 'bell' }));
+      if (bar >= 8 && bar < 16) { const line = [79, 77, 75, 74]; ev.push({ b: o, f: mtof(line[bar % 4] + 12), d: 3.5, v: 0.14, k: 'bell' }); }
+      if (bar >= 12) { const bass = [43, 41, 39, 38]; ev.push({ b: o, f: mtof(bass[bar % 4]), d: 1.6, v: 0.22, k: 'bass' }); }
+      if (bar >= 16 && bar < 20) { const hi = [[86,0],[84,1],[82,2]]; hi.forEach(([m, t]) => ev.push({ b: o + t, f: mtof(m), d: 1.6, v: 0.1, k: 'bell' })); }
+    }
+    return { ev: ev.sort((a, z) => a.b - z.b), len: bars * 3, spb: 0.27 };
+  }
+  const tracks = [{ name: '🎶 Jingle Bells', make: jingleBells }, { name: '🎶 Carol of the Bells', make: carolBells }];
+
+  let seq, idx, loopStart;
+  function startSeq() {
+    seq = tracks[audio.track].make();
+    idx = 0; loopStart = audio.ctx.currentTime + 0.15;
+    clearInterval(audio.timer);
+    audio.timer = setInterval(pump, 40);
+  }
+  function pump() {
+    const ctx = audio.ctx, ahead = ctx.currentTime + 0.25;
+    while (true) {
+      const e = seq.ev[idx];
+      const t = loopStart + e.b * seq.spb;
+      if (t > ahead) break;
+      if (e.k === 'bell') bell(e.f, t, e.d * 1.4, e.v);
+      else if (e.k === 'bass') softBass(e.f, t, e.d * seq.spb * 2.5, e.v);
+      else jingle(t, e.v);
+      idx++;
+      if (idx >= seq.ev.length) { idx = 0; loopStart += seq.len * seq.spb; }
+    }
+  }
+
+  const playBtn = $('play'), trackBtn = $('track');
+  playBtn.addEventListener('click', async () => {
+    if (!audio.ctx) initAudio();
+    if (audio.ctx.state === 'suspended') await audio.ctx.resume();
+    audio.on = !audio.on;
+    if (audio.on) {
+      audio.master.gain.setTargetAtTime(0.55, audio.ctx.currentTime, 0.05);
+      startSeq();
+      playBtn.textContent = '🔕 Couper';
+      playBtn.classList.remove('pulse');
+      sleighBells(1.5);
+    } else {
+      clearInterval(audio.timer);
+      audio.master.gain.setTargetAtTime(0.0001, audio.ctx.currentTime, 0.08);
+      playBtn.textContent = '🔔 Musique !';
+    }
+  });
+  trackBtn.addEventListener('click', () => {
+    audio.track = (audio.track + 1) % tracks.length;
+    trackBtn.textContent = tracks[audio.track].name;
+    if (audio.on) {
+      audio.master.gain.setTargetAtTime(0.0001, audio.ctx.currentTime, 0.05);
+      setTimeout(() => { audio.master.gain.setTargetAtTime(0.55, audio.ctx.currentTime, 0.05); startSeq(); }, 250);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
