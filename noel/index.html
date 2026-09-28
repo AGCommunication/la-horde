@@ -27,6 +27,7 @@
   body {
     margin: 0;
     overflow: hidden;
+    touch-action: none;
     font-family: var(--body);
     color: var(--snow);
     background: var(--santa-deep);
@@ -500,10 +501,29 @@
       setTimeout(() => b.remove(), 900);
     }
   }
+  let holding = false, px = 0, py = 0, holdTimer = null, lastPuff = 0, lastDing = 0;
+  function ding() {
+    if (!audio.on) return;
+    const n = [79, 84, 88, 91][Math.floor(Math.random() * 4)];
+    bell(mtof(n), audio.ctx.currentTime, 2.5, 0.2);
+  }
   addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
-    confetti(e.clientX, e.clientY);
-    if (audio.on) { const n = [79, 84, 88, 91][Math.floor(Math.random() * 4)]; bell(mtof(n), audio.ctx.currentTime, 2.5, 0.25); }
+    holding = true; px = e.clientX; py = e.clientY;
+    confetti(px, py); ding();
+    clearInterval(holdTimer);
+    holdTimer = setInterval(() => { if (holding) confetti(px, py); }, 110);
+  });
+  addEventListener('pointermove', e => {
+    if (!holding) return;
+    px = e.clientX; py = e.clientY;
+    const now = performance.now();
+    if (now - lastPuff > 60) { lastPuff = now; confetti(px, py); }
+    if (now - lastDing > 280) { lastDing = now; ding(); }
+  });
+  const stopHold = () => { holding = false; clearInterval(holdTimer); };
+  addEventListener('pointerup', stopHold);
+  addEventListener('pointercancel', stopHold);
   });
 
   /* ================= MUSIQUE (synthé cloches, Web Audio) ================= */
